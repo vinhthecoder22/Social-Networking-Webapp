@@ -42,7 +42,7 @@ public class GlobalExceptionHandler {
           LocaleContextHolder.getLocale());
       result.put(fieldName, errorMessage);
     });
-    return VsResponseUtil.error(HttpStatus.BAD_REQUEST, result);
+    return VsResponseUtil.errorValidation(HttpStatus.BAD_REQUEST, result);
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -54,14 +54,14 @@ public class GlobalExceptionHandler {
               LocaleContextHolder.getLocale());
       result.put(fieldName, errorMessage);
     });
-    return VsResponseUtil.error(HttpStatus.BAD_REQUEST, result);
+    return VsResponseUtil.errorValidation(HttpStatus.BAD_REQUEST, result);
   }
 
   @ExceptionHandler(MissingServletRequestPartException.class)
   public ResponseEntity<RestData<?>> handlerMissingServletRequestPartException(MissingServletRequestPartException ex) {
     Map<String, String> result = new HashMap<>();
     result.put(ex.getRequestPartName(), ex.getMessage());
-    return VsResponseUtil.error(HttpStatus.BAD_REQUEST, result);
+    return VsResponseUtil.errorValidation(HttpStatus.BAD_REQUEST, result);
   }
 
   @ExceptionHandler(Exception.class)
@@ -82,7 +82,7 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(VsException.class)
   public ResponseEntity<RestData<?>> handleVsException(VsException ex) {
     log.error(ex.getMessage(), ex);
-    return VsResponseUtil.error(ex.getStatus(), ex.getErrMessage());
+    return VsResponseUtil.errorValidation(ex.getStatus(), ex.getErrMessage());
   }
 
   @ExceptionHandler(NotFoundException.class)

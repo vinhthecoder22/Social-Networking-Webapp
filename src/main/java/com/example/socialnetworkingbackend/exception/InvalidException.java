@@ -7,37 +7,28 @@ import org.springframework.http.HttpStatus;
 @Getter
 @Setter
 public class InvalidException extends RuntimeException {
+    private HttpStatus status;
+    private String[] params;
 
-  private String message;
+    public InvalidException(String message) {
+        super(message);
+        this.status = HttpStatus.BAD_REQUEST;
+    }
 
-  private HttpStatus status;
+    public InvalidException(HttpStatus status, String message) {
+        super(message);
+        this.status = status;
+    }
 
-  private String[] params;
+    public InvalidException(String message, String[] params) {
+        super(message);
+        this.status = HttpStatus.BAD_REQUEST;
+        this.params = params;
+    }
 
-  public InvalidException(String message) {
-    super(message);
-    this.status = HttpStatus.BAD_REQUEST;
-    this.message = message;
-  }
-
-  public InvalidException(HttpStatus status, String message) {
-    super(message);
-    this.status = status;
-    this.message = message;
-  }
-
-  public InvalidException(String message, String[] params) {
-    super(message);
-    this.status = HttpStatus.BAD_REQUEST;
-    this.message = message;
-    this.params = params;
-  }
-
-  public InvalidException(HttpStatus status, String message, String[] params) {
-    super(message);
-    this.status = status;
-    this.message = message;
-    this.params = params;
-  }
-
+    public InvalidException(HttpStatus status, String message, String[] params) {
+        super(message);
+        this.status = status;
+        this.params = params;
+    }
 }
