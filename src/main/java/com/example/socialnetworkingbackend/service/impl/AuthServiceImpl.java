@@ -132,6 +132,9 @@ public class AuthServiceImpl implements AuthService {
     public CommonResponseDto logout(HttpServletRequest request) {
         logger.info("Processing logout request");
         String bearerToken = request.getHeader("Authorization");
+        if (!StringUtils.hasText(bearerToken) || !bearerToken.startsWith("Bearer ")) {
+            throw new UnauthorizedException(ErrorMessage.Auth.INVALID_ACCESS_TOKEN);
+        }
         String token = bearerToken.substring(7);
         logger.info("Logout token: {}", token);
 
