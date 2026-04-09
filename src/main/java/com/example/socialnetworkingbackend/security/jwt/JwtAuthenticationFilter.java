@@ -81,21 +81,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             String message = messageSource.getMessage(e.getMessage(), null, LocaleContextHolder.getLocale());
-            response.getOutputStream().write(new ObjectMapper().writeValueAsBytes(RestData.error(message)));
+            response.getOutputStream().write(new ObjectMapper().writeValueAsBytes(RestData.error(e.getMessage(), message)));
             return;
         } catch (NotFoundException ex) {
             MessageSource messageSource = BeanUtil.getBean(MessageSource.class);
             response.setStatus(HttpStatus.NOT_FOUND.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             String message = messageSource.getMessage(ex.getMessage(), null, LocaleContextHolder.getLocale());
-            response.getOutputStream().write(new ObjectMapper().writeValueAsBytes(RestData.error(message)));
+            response.getOutputStream().write(new ObjectMapper().writeValueAsBytes(RestData.error(ex.getMessage(), message)));
             return;
         } catch (Exception ex) {
             log.error("Failed to process authentication request", ex);
+            MessageSource messageSource = BeanUtil.getBean(MessageSource.class);
             response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             String message = messageSource.getMessage(ErrorMessage.ERR_EXCEPTION_GENERAL, null, LocaleContextHolder.getLocale());
-            response.getOutputStream().write(new ObjectMapper().writeValueAsBytes(RestData.error(message)));
+            response.getOutputStream().write(new ObjectMapper().writeValueAsBytes(RestData.error(ErrorMessage.ERR_EXCEPTION_GENERAL, message)));
             return;
         }
         filterChain.doFilter(request, response);
@@ -115,5 +116,4 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         return null;
     }
-
 }
