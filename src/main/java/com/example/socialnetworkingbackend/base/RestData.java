@@ -1,22 +1,26 @@
 package com.example.socialnetworkingbackend.base;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class RestData<T> {
 
     private RestStatus status;
 
+    // Mã lỗi / mã thành công để FE xử lý logic
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private T message;
+    private String code;
 
+    // Message hiển thị cho user
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String message;
+
+    // Data trả về
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private T data;
 
@@ -25,12 +29,28 @@ public class RestData<T> {
         this.data = data;
     }
 
-    public static RestData<?> successWithMessage(Object message) {
-        return new RestData<>(RestStatus.SUCCESS,message, null);
+    // ===== SUCCESS =====
+    public static <T> RestData<T> success(T data) {
+        return RestData.<T>builder()
+                .status(RestStatus.SUCCESS)
+                .data(data)
+                .build();
     }
 
-    public static RestData<?> error(Object message) {
-        return new RestData<>(RestStatus.ERROR, message, null);
+    public static RestData<?> successWithMessage(String message) {
+        return RestData.builder()
+                .status(RestStatus.SUCCESS)
+                .message(message)
+                .build();
+    }
+
+    // ===== ERROR =====
+    public static RestData<?> error(String code, String message) {
+        return RestData.builder()
+                .status(RestStatus.ERROR)
+                .code(code)
+                .message(message)
+                .build();
     }
 
 }
