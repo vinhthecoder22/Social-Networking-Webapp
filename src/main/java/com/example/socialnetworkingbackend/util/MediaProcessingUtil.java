@@ -1,21 +1,19 @@
-package com.example.projectbase.util;
+package com.example.socialnetworkingbackend.util;
 
-import com.example.projectbase.constant.ErrorMessage;
-import com.example.projectbase.constant.MediaConstant;
-import com.example.projectbase.constant.UploadStatusConstant;
-import com.example.projectbase.domain.entity.Media;
-import com.example.projectbase.domain.entity.PostCategory;
-import com.example.projectbase.domain.entity.User;
-import com.example.projectbase.exception.InvalidException;
-import com.example.projectbase.exception.MaxUploadSizeMediaException;
-import com.example.projectbase.exception.NotFoundException;
-import com.example.projectbase.repository.MediaRepository;
-import com.example.projectbase.repository.UserRepository;
-import com.example.projectbase.security.UserPrincipal;
+import com.example.socialnetworkingbackend.constant.ErrorMessage;
+import com.example.socialnetworkingbackend.constant.MediaConstant;
+import com.example.socialnetworkingbackend.constant.UploadStatusConstant;
+import com.example.socialnetworkingbackend.domain.entity.Media;
+import com.example.socialnetworkingbackend.domain.entity.User;
+import com.example.socialnetworkingbackend.exception.InternalServerException;
+import com.example.socialnetworkingbackend.exception.InvalidException;
+import com.example.socialnetworkingbackend.exception.MaxUploadSizeMediaException;
+import com.example.socialnetworkingbackend.exception.NotFoundException;
+import com.example.socialnetworkingbackend.repository.MediaRepository;
+import com.example.socialnetworkingbackend.repository.UserRepository;
 
 import lombok.extern.log4j.Log4j2;
 import org.springframework.lang.Nullable;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.io.File;
 
@@ -57,26 +55,26 @@ public class MediaProcessingUtil {
                                     MediaRepository mediaRepository,
                                     UserRepository userRepository) {
         try {
-log.info("Creating media pending for type: {}", typeMedia);
+            log.info("Creating media pending for type: {}", typeMedia);
 
-        log.info("Successfully get user principal");
-        User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException(ErrorMessage.User.ERR_NOT_FOUND_ID));
-        log.info("current user: {}", user.toString());
-        String publicId = generatePublicIdMedia(multipartFile, typeMedia);
-        log.info("Generated publicId: {}", publicId);
-        Media media = Media.builder()
-                .publicId(publicId)
-                .resourceType(typeMedia)
-                .dataSize(multipartFile.length())
-                .status(UploadStatusConstant.PENDING)
-                .user(user)
-                .singerName(singerName)
-                .build();
-        log.info("Created media pending successfully");
-        return mediaRepository.save(media);
+            log.info("Successfully get user principal");
+            User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException(ErrorMessage.User.ERR_NOT_FOUND_ID));
+            log.info("current user: {}", user.toString());
+            String publicId = generatePublicIdMedia(multipartFile, typeMedia);
+            log.info("Generated publicId: {}", publicId);
+            Media media = Media.builder()
+                    .publicId(publicId)
+                    .resourceType(typeMedia)
+                    .dataSize(multipartFile.length())
+                    .status(UploadStatusConstant.PENDING)
+                    .user(user)
+                    .singerName(singerName)
+                    .build();
+            log.info("Created media pending successfully");
+            return mediaRepository.save(media);
         } catch (Exception e) {
             log.error("Error while creating media pending", e);
-            throw new RuntimeException("Failed to create media pending", e);
+            throw new InternalServerException(ErrorMessage.ERR_EXCEPTION_GENERAL);
         }
         
     }

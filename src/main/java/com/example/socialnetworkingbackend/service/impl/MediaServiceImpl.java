@@ -1,14 +1,14 @@
-package com.example.projectbase.service.impl;
+package com.example.socialnetworkingbackend.service.impl;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import com.example.projectbase.constant.ErrorMessage;
-import com.example.projectbase.domain.dto.response.MediaResponseDto;
-import com.example.projectbase.domain.entity.Media;
-import com.example.projectbase.domain.mapper.MediaMapper;
-import com.example.projectbase.exception.NotFoundException;
-import com.example.projectbase.repository.MediaRepository;
-import com.example.projectbase.service.MediaService;
+import com.example.socialnetworkingbackend.constant.ErrorMessage;
+import com.example.socialnetworkingbackend.domain.dto.response.MediaResponseDto;
+import com.example.socialnetworkingbackend.domain.entity.Media;
+import com.example.socialnetworkingbackend.domain.mapper.MediaMapper;
+import com.example.socialnetworkingbackend.exception.NotFoundException;
+import com.example.socialnetworkingbackend.repository.MediaRepository;
+import com.example.socialnetworkingbackend.service.MediaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
@@ -28,10 +28,9 @@ public class MediaServiceImpl implements MediaService {
 
     @Override
     public MediaResponseDto getMediaByPublicId(String publicId) {
-        Media media = mediaRepository.findMediaByPublicId(publicId);
-        if (media == null) {
-            throw new NotFoundException(ErrorMessage.Media.ERR_NOT_FOUND_MEDIA, new String[]{publicId});
-        }
+        Media media = mediaRepository.findMediaByPublicId(publicId)
+                .orElseThrow(() -> new NotFoundException(ErrorMessage.Media.ERR_NOT_FOUND_MEDIA, new String[]{publicId}));
+
         return mediaMapper.toMediaResponseDto(media);
     }
 

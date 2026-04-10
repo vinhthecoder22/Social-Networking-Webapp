@@ -1,14 +1,14 @@
-package com.example.projectbase.service.impl;
+package com.example.socialnetworkingbackend.service.impl;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import com.example.projectbase.constant.UploadStatusConstant;
-import com.example.projectbase.domain.dto.response.MediaResponseDto;
-import com.example.projectbase.domain.entity.Media;
-import com.example.projectbase.domain.mapper.MediaMapper;
-import com.example.projectbase.repository.MediaRepository;
-import com.example.projectbase.repository.UserRepository;
-import com.example.projectbase.util.MediaProcessingUtil;
+import com.example.socialnetworkingbackend.constant.UploadStatusConstant;
+import com.example.socialnetworkingbackend.domain.dto.response.MediaResponseDto;
+import com.example.socialnetworkingbackend.domain.entity.Media;
+import com.example.socialnetworkingbackend.domain.mapper.MediaMapper;
+import com.example.socialnetworkingbackend.repository.MediaRepository;
+import com.example.socialnetworkingbackend.repository.UserRepository;
+import com.example.socialnetworkingbackend.util.MediaProcessingUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.scheduling.annotation.Async;
@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 @Service
@@ -92,7 +91,6 @@ public class ImageProcessingService {
             imageUpload.setStatus(UploadStatusConstant.DONE);
 
             MediaResponseDto responseDto = mediaMapper.toMediaResponseDto(mediaRepository.save(imageUpload));
-            responseDto.setAuthorId(imageUpload.getUser().getId());
 
             log.info("Uploaded video to cloudinary successfully");
             return responseDto;

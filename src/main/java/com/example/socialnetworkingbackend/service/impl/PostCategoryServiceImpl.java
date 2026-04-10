@@ -1,24 +1,19 @@
-package com.example.projectbase.service.impl;
+package com.example.socialnetworkingbackend.service.impl;
 
-import com.example.projectbase.constant.ErrorMessage;
-import com.example.projectbase.domain.entity.Post;
-import com.example.projectbase.domain.entity.PostCategory;
-import com.example.projectbase.exception.NotFoundException;
-import com.example.projectbase.repository.PostCategoryRepository;
-import com.example.projectbase.repository.PostRepository;
-import com.example.projectbase.security.UserPrincipal;
-import com.example.projectbase.service.PostCategoryService;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.socialnetworkingbackend.constant.ErrorMessage;
+import com.example.socialnetworkingbackend.domain.entity.Post;
+import com.example.socialnetworkingbackend.domain.entity.PostCategory;
+import com.example.socialnetworkingbackend.exception.NotFoundException;
+import com.example.socialnetworkingbackend.repository.PostCategoryRepository;
+import com.example.socialnetworkingbackend.repository.PostRepository;
+import com.example.socialnetworkingbackend.security.UserPrincipal;
+import com.example.socialnetworkingbackend.service.PostCategoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -27,12 +22,13 @@ public class PostCategoryServiceImpl implements PostCategoryService {
 
     private final PostCategoryRepository postCategoryRepository;
     private final PostRepository postRepository;
-    private final RedisServiceImpl redisService;
-    private final ObjectMapper objectMapper;
+
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @Override
     public PostCategory createPostCategory(String name) {
-        PostCategory postCategory = postCategoryRepository.findByName(name);
+        PostCategory postCategory = postCategoryRepository.findByName(name).orElse(null);
+
         if (postCategory == null) {
             postCategory = new PostCategory();
             postCategory.setName(name);
@@ -53,31 +49,18 @@ public class PostCategoryServiceImpl implements PostCategoryService {
 
     @Override
     public void updateTrendingCategoryOnRedis(Long postId) {
-        try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-            log.info("Updating trending of user id {}", userPrincipal.getId());
-            Post post = postRepository.findById(postId)
-                    .orElseThrow(() -> new NotFoundException(ErrorMessage.Post.ERR_NOT_FOUND_ORIGINAL_POST,  new String[]{String.valueOf(postId)}));
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        log.info("Updating trending of user id {}", userPrincipal.getId());
 
-            PostCategory postCategory = post.getCategory();
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new NotFoundException(ErrorMessage.Post.ERR_NOT_FOUND_ORIGINAL_POST,  new String[]{String.valueOf(postId)}));
 
-            String trendingOfUser = redisService.get("username:" + authentication.getName() + ":trending");
-            if (trendingOfUser == null) {
-                Map<String, Object> dataTrending = new HashMap<>();
-                dataTrending.put(postCategory.getName(), 1);
-                String json = objectMapper.writeValueAsString(dataTrending);
-                redisService.save("username:"+userPrincipal.getUsername()+":trending", json);
-            } else {
-                Map<String, Object> categoryPostList = objectMapper.readValue(trendingOfUser, new TypeReference<>() {});
-                int interactCategoryCount = (int) categoryPostList.get(postCategory.getName());
-                categoryPostList.put(post.getCategory().getName(), interactCategoryCount + 1);
-                String updatedJson = objectMapper.writeValueAsString(categoryPostList);
-                redisService.save("username:"+userPrincipal.getUsername()+":trending", updatedJson);
-            }
-        } catch (JsonProcessingException ex) {
-            ex.printStackTrace();
-        }
+        PostCategory postCategory = post.getCategory();
+        String redisKey = "username:" + userPrincipal.getUsername() + ":trending";
+
+        redisTemplate.opsForHash().increment(redisKey, postCategory.getName(), 1);
+
         log.info("Updated trending successfully");
     }
 }

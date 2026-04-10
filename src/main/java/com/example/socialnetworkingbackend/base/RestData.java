@@ -53,5 +53,14 @@ public class RestData<T> {
                 .build();
     }
 
+    public static <T> RestData<T> errorData(String code, String message, T data) {
+        return RestData.<T>builder()
+                .status(RestStatus.ERROR)
+                .code(code)
+                .message(message)
+                .data(data)
+                .build();
+    }
+
 }
 

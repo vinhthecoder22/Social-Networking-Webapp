@@ -1,16 +1,16 @@
-package com.example.projectbase.service.impl;
+package com.example.socialnetworkingbackend.service.impl;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.Transformation;
 import com.cloudinary.utils.ObjectUtils;
-import com.example.projectbase.constant.UploadStatusConstant;
-import com.example.projectbase.domain.dto.response.MediaResponseDto;
-import com.example.projectbase.domain.entity.Media;
-import com.example.projectbase.domain.mapper.MediaMapper;
-import com.example.projectbase.exception.BadRequestException;
-import com.example.projectbase.repository.MediaRepository;
-import com.example.projectbase.repository.UserRepository;
-import com.example.projectbase.util.MediaProcessingUtil;
+import com.example.socialnetworkingbackend.constant.UploadStatusConstant;
+import com.example.socialnetworkingbackend.domain.dto.response.MediaResponseDto;
+import com.example.socialnetworkingbackend.domain.entity.Media;
+import com.example.socialnetworkingbackend.domain.mapper.MediaMapper;
+import com.example.socialnetworkingbackend.exception.BadRequestException;
+import com.example.socialnetworkingbackend.repository.MediaRepository;
+import com.example.socialnetworkingbackend.repository.UserRepository;
+import com.example.socialnetworkingbackend.util.MediaProcessingUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.scheduling.annotation.Async;
@@ -166,7 +166,6 @@ public class AudioProcessingService {
 
             Media savedMedia = mediaRepository.save(audioUpload);
             MediaResponseDto audioResponseDto = mediaMapper.toMediaResponseDto(savedMedia);
-            audioResponseDto.setAuthorId(savedMedia.getUser().getId());
             responseDtoList.add(audioResponseDto);
 
             log.info("Uploaded audio to cloudinary successfully");

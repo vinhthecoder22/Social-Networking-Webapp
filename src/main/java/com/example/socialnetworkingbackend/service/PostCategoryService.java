@@ -1,6 +1,6 @@
-package com.example.projectbase.service;
+package com.example.socialnetworkingbackend.service;
 
-import com.example.projectbase.domain.entity.PostCategory;
+import com.example.socialnetworkingbackend.domain.entity.PostCategory;
 
 public interface PostCategoryService {
 

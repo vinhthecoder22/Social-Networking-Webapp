@@ -1,14 +1,17 @@
-package com.example.projectbase.service.impl;
+package com.example.socialnetworkingbackend.service;
 
-import com.example.projectbase.constant.ErrorMessage;
-import com.example.projectbase.constant.MediaType;
-import com.example.projectbase.constant.PostStatusConstant;
-import com.example.projectbase.domain.dto.response.MediaResponseDto;
-import com.example.projectbase.domain.entity.Media;
-import com.example.projectbase.domain.entity.Post;
-import com.example.projectbase.exception.NotFoundException;
-import com.example.projectbase.repository.MediaRepository;
-import com.example.projectbase.repository.PostRepository;
+import com.example.socialnetworkingbackend.constant.ErrorMessage;
+import com.example.socialnetworkingbackend.constant.MediaType;
+import com.example.socialnetworkingbackend.constant.PostStatusConstant;
+import com.example.socialnetworkingbackend.domain.dto.response.MediaResponseDto;
+import com.example.socialnetworkingbackend.domain.entity.Media;
+import com.example.socialnetworkingbackend.domain.entity.Post;
+import com.example.socialnetworkingbackend.exception.NotFoundException;
+import com.example.socialnetworkingbackend.repository.MediaRepository;
+import com.example.socialnetworkingbackend.repository.PostRepository;
+import com.example.socialnetworkingbackend.service.impl.AudioProcessingService;
+import com.example.socialnetworkingbackend.service.impl.ImageProcessingService;
+import com.example.socialnetworkingbackend.service.impl.VideoProcessingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.scheduling.annotation.Async;
@@ -62,7 +65,6 @@ public class PostMediaService {
 
       } catch (Exception e) {
          log.error("Error processing media for postId: {}", postId, e);
-         // Optionally set post status to FAILED here if initial setup fails
       }
    }
 
@@ -102,16 +104,16 @@ public class PostMediaService {
       });
    }
 
-   private void saveMediaToPost(Post post, MediaResponseDto dto) {
-      if (post.getMediaList() == null) {
-         post.setMediaList(new ArrayList<>());
-      }
-      Media media = mediaRepository.findMediaByPublicId(dto.getPublicId());
-      if (media == null) {
-         throw new NotFoundException(ErrorMessage.Media.ERR_NOT_FOUND_MEDIA, new String[] { dto.getPublicId() });
-      }
-      media.setPost(post);
-      post.getMediaList().add(media);
-      mediaRepository.save(media);
-   }
+    private void saveMediaToPost(Post post, MediaResponseDto dto) {
+        if (post.getMediaList() == null) {
+            post.setMediaList(new ArrayList<>());
+        }
+
+        Media media = mediaRepository.findMediaByPublicId(dto.getPublicId())
+                .orElseThrow(() -> new NotFoundException(ErrorMessage.Media.ERR_NOT_FOUND_MEDIA, new String[] { dto.getPublicId() }));
+
+        media.setPost(post);
+        post.getMediaList().add(media);
+        mediaRepository.save(media);
+    }
 }
