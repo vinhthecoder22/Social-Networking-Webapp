@@ -1,7 +1,7 @@
 package com.example.socialnetworkingbackend.exception;
 
-public class ResourceNotFoundException extends RuntimeException {
-    public ResourceNotFoundException(String resource, String field, Object value) {
-        super(String.format("%s không tìm thấy với %s = '%s'", resource, field, value));
+public class ResourceNotFoundException extends NotFoundException {
+    public ResourceNotFoundException(String resource, String field, String value) {
+        super("error.resource.not_found", new String[]{resource, field, value});
     }
 }

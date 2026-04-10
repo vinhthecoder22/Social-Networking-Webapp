@@ -52,7 +52,7 @@ public class Media extends DateAuditing {
 
     private Long width;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "author_id", referencedColumnName = "id", foreignKey = @ForeignKey(name = "FK_MEDIA_USER"))
     @OnDelete(action = OnDeleteAction.CASCADE)
     @JsonIgnore

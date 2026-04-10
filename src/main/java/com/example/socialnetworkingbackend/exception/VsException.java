@@ -8,32 +8,28 @@ import org.springframework.http.HttpStatus;
 @Setter
 public class VsException extends RuntimeException {
 
-  private Object errMessage;
+    private HttpStatus status;
+    private String[] params;
 
-  private HttpStatus status;
+    public VsException(String message) {
+        super(message);
+        this.status = HttpStatus.INTERNAL_SERVER_ERROR;
+    }
 
-  private String[] params;
+    public VsException(HttpStatus status, String message) {
+        super(message);
+        this.status = status;
+    }
 
-  public VsException(String errMessage) {
-    this.status = HttpStatus.INTERNAL_SERVER_ERROR;
-    this.errMessage = errMessage;
-  }
+    public VsException(String message, String[] params) {
+        super(message);
+        this.status = HttpStatus.INTERNAL_SERVER_ERROR;
+        this.params = params;
+    }
 
-  public VsException(HttpStatus status, Object errMessage) {
-    this.errMessage = errMessage;
-    this.status = status;
-  }
-
-  public VsException(String errMessage, String[] params) {
-    this.status = HttpStatus.INTERNAL_SERVER_ERROR;
-    this.errMessage = errMessage;
-    this.params = params;
-  }
-
-  public VsException(HttpStatus status, String errMessage, String[] params) {
-    this.status = status;
-    this.errMessage = errMessage;
-    this.params = params;
-  }
-
+    public VsException(HttpStatus status, String message, String[] params) {
+        super(message);
+        this.status = status;
+        this.params = params;
+    }
 }

@@ -29,7 +29,7 @@ public class UserSetting {
     @Enumerated(EnumType.STRING)
     private LanguageSetting language;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", referencedColumnName = "id")
     @OnDelete(action = OnDeleteAction.CASCADE)
     private User user;

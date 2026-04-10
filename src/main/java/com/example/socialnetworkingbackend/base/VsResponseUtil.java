@@ -32,8 +32,18 @@ public class VsResponseUtil {
         return ResponseEntity.ok().headers(responseHeaders).body(response);
     }
 
-    public static ResponseEntity<RestData<?>> error(HttpStatus status, Object message) {
-        RestData<?> response = RestData.error(message);
+    public static ResponseEntity<RestData<?>> error(HttpStatus status, String message) {
+        RestData<?> response = RestData.error(status.name(), message);
+        return new ResponseEntity<>(response, status);
+    }
+
+    public static ResponseEntity<RestData<?>> error(HttpStatus status, String code, String message) {
+        RestData<?> response = RestData.error(code, message);
+        return new ResponseEntity<>(response, status);
+    }
+
+    public static ResponseEntity<RestData<?>> errorValidation(HttpStatus status, Object data) {
+        RestData<?> response = RestData.errorData(status.name(), "Validation Error", data);
         return new ResponseEntity<>(response, status);
     }
 

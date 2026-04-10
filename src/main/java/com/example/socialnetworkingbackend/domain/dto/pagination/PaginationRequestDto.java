@@ -9,26 +9,25 @@ import lombok.Setter;
 
 @AllArgsConstructor
 @NoArgsConstructor
-@Getter
 @Setter
 public class PaginationRequestDto {
 
-  @Parameter(description = "Page you want to retrieve (0..N)")
-  private Integer pageNum = CommonConstant.ZERO_INT_VALUE;
+  @Parameter(description = "Page you want to retrieve (1..N)")
+  private Integer pageNum = CommonConstant.ONE_INT_VALUE;
 
   @Parameter(description = "Number of records per page")
-  private Integer pageSize = CommonConstant.ZERO_INT_VALUE;
+  private Integer pageSize = CommonConstant.PAGE_SIZE_DEFAULT;
 
   public int getPageNum() {
-    if (pageNum < 1) {
-      pageNum = CommonConstant.ONE_INT_VALUE;
+    if (pageNum == null || pageNum < 1) {
+        return 0; // JPA tính page từ 0
     }
     return pageNum - 1;
   }
 
   public int getPageSize() {
-    if (pageSize < 1) {
-      pageSize = CommonConstant.PAGE_SIZE_DEFAULT;
+    if (pageSize == null || pageSize < 1) {
+        return CommonConstant.PAGE_SIZE_DEFAULT;
     }
     return pageSize;
   }
