@@ -87,7 +87,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<RestData<?>> handlerNotFoundException(NotFoundException ex) {
-        String message = messageSource.getMessage(ex.getMessage(), ex.getParams(), LocaleContextHolder.getLocale());
+        String message = messageSource.getMessage(ex.getMessage(), ex.getParams(), ex.getMessage(), LocaleContextHolder.getLocale());
         log.warn(message);
         return VsResponseUtil.error(ex.getStatus(), message);
     }
@@ -95,34 +95,34 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidException.class)
     public ResponseEntity<RestData<?>> handlerInvalidException(InvalidException ex) {
         log.error(ex.getMessage(), ex);
-        String message = messageSource.getMessage(ex.getMessage(), ex.getParams(), LocaleContextHolder.getLocale());
+        String message = messageSource.getMessage(ex.getMessage(), ex.getParams(), ex.getMessage(), LocaleContextHolder.getLocale());
         return VsResponseUtil.error(ex.getStatus(), message);
     }
 
     @ExceptionHandler(InternalServerException.class)
     public ResponseEntity<RestData<?>> handlerInternalServerException(InternalServerException ex) {
-        String message = messageSource.getMessage(ex.getMessage(), ex.getParams(), LocaleContextHolder.getLocale());
+        String message = messageSource.getMessage(ex.getMessage(), ex.getParams(), ex.getMessage(), LocaleContextHolder.getLocale());
         log.error(message, ex);
         return VsResponseUtil.error(ex.getStatus(), message);
     }
 
     @ExceptionHandler(UploadFileException.class)
     public ResponseEntity<RestData<?>> handleUploadImageException(UploadFileException ex) {
-        String message = messageSource.getMessage(ex.getMessage(), ex.getParams(), LocaleContextHolder.getLocale());
+        String message = messageSource.getMessage(ex.getMessage(), ex.getParams(), ex.getMessage(), LocaleContextHolder.getLocale());
         log.error(message);
         return VsResponseUtil.error(ex.getStatus(), message);
     }
 
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<RestData<?>> handleUnauthorizedException(UnauthorizedException ex) {
-        String message = messageSource.getMessage(ex.getMessage(), ex.getParams(), LocaleContextHolder.getLocale());
+        String message = messageSource.getMessage(ex.getMessage(), ex.getParams(), ex.getMessage(), LocaleContextHolder.getLocale());
         log.error(message);
         return VsResponseUtil.error(ex.getStatus(), message);
     }
 
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<RestData<?>> handleAccessDeniedException(ForbiddenException ex) {
-        String message = messageSource.getMessage(ex.getMessage(), ex.getParams(), LocaleContextHolder.getLocale());
+        String message = messageSource.getMessage(ex.getMessage(), ex.getParams(), ex.getMessage(), LocaleContextHolder.getLocale());
         log.error(message, ex);
         return VsResponseUtil.error(ex.getStatus(), message);
     }
@@ -136,14 +136,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<RestData<?>> handleBadRequestException(BadRequestException ex) {
-        String message = messageSource.getMessage(ex.getMessage(), ex.getParams(), LocaleContextHolder.getLocale());
+        String message = messageSource.getMessage(ex.getMessage(), ex.getParams(), ex.getMessage(), LocaleContextHolder.getLocale());
         log.warn(message, ex);
         return VsResponseUtil.error(ex.getStatus(), message);
     }
 
     @ExceptionHandler(MaxUploadSizeMediaException.class)
     public ResponseEntity<RestData<?>> handleMaxUploadSizeMediaException(MaxUploadSizeMediaException ex) {
-        String message = messageSource.getMessage(ex.getMessage(), ex.getParams(), LocaleContextHolder.getLocale());
+        String message = messageSource.getMessage(ex.getMessage(), ex.getParams(), ex.getMessage(), LocaleContextHolder.getLocale());
         log.warn(message);
         return VsResponseUtil.error(ex.getStatus(), message);
     }

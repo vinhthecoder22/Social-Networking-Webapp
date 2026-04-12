@@ -35,6 +35,9 @@ public class WebSecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/v1/auth/**",
+            "/api/v1/forgot-password/**",
+            "/login/oauth2/**",
+            "/api/v1/oauth2/info/**",
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html"

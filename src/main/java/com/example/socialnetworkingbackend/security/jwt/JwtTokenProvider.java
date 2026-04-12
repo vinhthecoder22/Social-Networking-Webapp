@@ -65,7 +65,7 @@ public class JwtTokenProvider {
     }
 
     public Authentication getAuthenticationByRefreshToken(String refreshToken) {
-        Claims claims = Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(refreshToken).getBody();
+        Claims claims = Jwts.parserBuilder().setSigningKey(SECRET_KEY).build().parseClaimsJws(refreshToken).getBody();
         if (!claims.get(CLAIM_TYPE).equals(TYPE_REFRESH) || ObjectUtils.isEmpty(claims.get(AUTHORITIES_KEY))
                 || ObjectUtils.isEmpty(claims.get(USERNAME_KEY))) {
             throw new InvalidException(ErrorMessage.Auth.INVALID_REFRESH_TOKEN);
@@ -79,15 +79,15 @@ public class JwtTokenProvider {
     }
 
     public String extractClaimUsername(String token) {
-        return Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token).getBody().get(USERNAME_KEY).toString();
+        return Jwts.parserBuilder().setSigningKey(SECRET_KEY).build().parseClaimsJws(token).getBody().get(USERNAME_KEY).toString();
     }
 
     public String extractSubjectFromJwt(String token) {
-        return Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token).getBody().getSubject();
+        return Jwts.parserBuilder().setSigningKey(SECRET_KEY).build().parseClaimsJws(token).getBody().getSubject();
     }
 
     public Date extractExpirationFromJwt(String token) {
-        return Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token).getBody().getExpiration();
+        return Jwts.parserBuilder().setSigningKey(SECRET_KEY).build().parseClaimsJws(token).getBody().getExpiration();
     }
 
     public Boolean isTokenExpired(String token) {
