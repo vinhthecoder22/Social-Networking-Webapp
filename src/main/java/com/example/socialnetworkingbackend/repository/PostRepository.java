@@ -5,9 +5,11 @@ import com.example.socialnetworkingbackend.domain.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -24,4 +26,14 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query("SELECT p FROM Post p WHERE p.user IN (SELECT f.following FROM Follow f WHERE f.follower = :currentUser) ORDER BY p.createdAt DESC")
     Page<Post> getNewsfeedForUser(@Param("currentUser") User currentUser, Pageable pageable);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Post p SET p.reactionCount = p.reactionCount + 1 WHERE p.id = :postId")
+    void incrementReactionCount(@Param("postId") Long postId);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Post p SET p.reactionCount = p.reactionCount - 1 WHERE p.id = :postId AND p.reactionCount > 0")
+    void decrementReactionCount(@Param("postId") Long postId);
 }

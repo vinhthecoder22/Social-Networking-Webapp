@@ -21,5 +21,5 @@ public interface ReactionRepository extends JpaRepository<Reaction, Long> {
     @Query("DELETE FROM Reaction r WHERE r.user.id = :userId AND r.post.id = :postId")
     int deleteByUserIdAndPostId(@Param("userId") String userId, @Param("postId") Long postId);
 
-    Page<Reaction> findAllByPost(Post post, Pageable pageable);
+    Page<Reaction> findAllByPostId(Long postId, Pageable pageable);
 }
