@@ -7,8 +7,12 @@ import java.util.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.core.oidc.OidcIdToken;
+import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 
-public class UserPrincipal implements UserDetails {
+public class UserPrincipal implements UserDetails, OAuth2User, OidcUser {
 
     private final String id;
 
@@ -27,6 +31,10 @@ public class UserPrincipal implements UserDetails {
     private String password;
 
     private final Collection<? extends GrantedAuthority> authorities;
+
+    private Map<String, Object> attributes;
+    private OidcIdToken idToken;
+    private OidcUserInfo userInfo;
 
     public UserPrincipal(String id, String firstName, String lastName, String username, String password,
                          Collection<? extends GrantedAuthority> authorities) {
@@ -50,6 +58,7 @@ public class UserPrincipal implements UserDetails {
         this.roleName = roleName;
     }
 
+    // Đăng nhập bằng tài khoản/mật khẩu
     public static UserPrincipal create(User user) {
         List<GrantedAuthority> authorities = new ArrayList<>();
         String roleName = user.getRole() != null ? user.getRole().getName() : "USER";
@@ -66,6 +75,15 @@ public class UserPrincipal implements UserDetails {
                 authorities,
                 roleId,
                 roleName);
+    }
+
+    // Dành cho Đăng nhập bằng Google / Facebook
+    public static UserPrincipal create(User user, Map<String, Object> attributes, OidcIdToken idToken, OidcUserInfo userInfo) {
+        UserPrincipal userPrincipal = UserPrincipal.create(user);
+        userPrincipal.attributes = attributes;
+        userPrincipal.idToken = idToken;
+        userPrincipal.userInfo = userInfo;
+        return userPrincipal;
     }
 
     public String getId() {
@@ -88,6 +106,7 @@ public class UserPrincipal implements UserDetails {
         return roleName;
     }
 
+    // UserDetails (Login thường)
     @Override
     public String getUsername() {
         return username;
@@ -123,6 +142,16 @@ public class UserPrincipal implements UserDetails {
         return true;
     }
 
+    // OAuth2User (Facebook)
+    @Override public Map<String, Object> getAttributes() { return attributes; }
+    @Override public String getName() { return username; }
+
+    // OidcUser (Google)
+    @Override public Map<String, Object> getClaims() { return this.idToken != null ? this.idToken.getClaims() : null; }
+    @Override public OidcUserInfo getUserInfo() { return this.userInfo; }
+    @Override public OidcIdToken getIdToken() { return this.idToken; }
+
+    @Override
     public boolean equals(Object object) {
         if (this == object)
             return true;
@@ -132,6 +161,7 @@ public class UserPrincipal implements UserDetails {
         return Objects.equals(id, that.id);
     }
 
+    @Override
     public int hashCode() {
         return Objects.hash(id);
     }
