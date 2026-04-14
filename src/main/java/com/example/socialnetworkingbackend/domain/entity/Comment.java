@@ -6,6 +6,7 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.annotations.Formula;
 
 import jakarta.persistence.*;
 import java.util.ArrayList;
@@ -47,4 +48,9 @@ public class Comment extends FlagUserDateAuditing {
 
     @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> replies = new ArrayList<>();
+
+    // Tự động đếm số reply bằng SQL (bỏ qua các comment đã bị soft delete)
+    @Formula("(SELECT COUNT(c.id) FROM comment c WHERE c.parent_id = id AND c.delete_flag = false)")
+    private Integer replyCount;
+
 }
