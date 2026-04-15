@@ -75,6 +75,12 @@ public class User extends FlagUserDateAuditing {
     @OneToMany(mappedBy = "follower", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Follow> followers = new ArrayList<>();
 
+    @Column(name = "follower_count", columnDefinition = "BIGINT DEFAULT 0")
+    private Long followerCount = 0L;
+
+    @Column(name = "following_count", columnDefinition = "BIGINT DEFAULT 0")
+    private Long followingCount = 0L;
+
     @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JoinColumn(name = "setting_id", referencedColumnName = "id")
     private UserSetting userSetting;
