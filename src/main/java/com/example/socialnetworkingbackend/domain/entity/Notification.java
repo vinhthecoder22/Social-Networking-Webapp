@@ -1,5 +1,6 @@
 package com.example.socialnetworkingbackend.domain.entity;
 
+import com.example.socialnetworkingbackend.constant.NotificationType;
 import com.example.socialnetworkingbackend.domain.entity.common.DateAuditing;
 import lombok.*;
 
@@ -26,8 +27,9 @@ public class Notification extends DateAuditing {
     @JoinColumn(name = "actor_id", nullable = false)
     private User actor; // Người tương tác (ai like, ai comment)
 
-    @Column(nullable = false)
-    private String notificationType; // LIKE, COMMENT, FOLLOW, MENTION...
+    @Enumerated(EnumType.STRING)
+    @Column(name = "notification_type", nullable = false)
+    private NotificationType notificationType;
 
     @Column(name = "target_id", nullable = false)
     private String targetId; // ID của post, comment hoặc user liên quan
