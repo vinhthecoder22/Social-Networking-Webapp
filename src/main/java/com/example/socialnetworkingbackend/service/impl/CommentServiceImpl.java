@@ -1,6 +1,7 @@
 package com.example.socialnetworkingbackend.service.impl;
 
 import com.example.socialnetworkingbackend.constant.ErrorMessage;
+import com.example.socialnetworkingbackend.constant.NotificationType;
 import com.example.socialnetworkingbackend.constant.RoleConstant;
 import com.example.socialnetworkingbackend.domain.dto.request.CommentRequestDto;
 import com.example.socialnetworkingbackend.domain.dto.request.ReplyCommentRequestDto;
@@ -37,31 +38,41 @@ public class CommentServiceImpl implements CommentService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final CommentMapper commentMapper;
+    private final NotificationService notificationService;
 
     @PreAuthorize("#username == authentication.principal.username")
     @Override
     @Transactional
     public CommentResponseDto addComment(Long postId, CommentRequestDto requestDto, String username) {
-        if (!postRepository.existsById(postId)) {
-            throw new NotFoundException(ErrorMessage.Post.ERR_NOT_FOUND_ID, new String[]{String.valueOf(postId)});
-        }
+        // Fetch Post lên 1 lần duy nhất (Validate + lấy User bắn thông báo)
+        Post post = postRepository.findById(postId).orElseThrow(
+                () -> new NotFoundException(ErrorMessage.Post.ERR_NOT_FOUND_ID, new String[]{String.valueOf(postId)})
+        );
 
         User user = userRepository.findByUsernameOrEmail(username, username)
                 .orElseThrow(() -> new NotFoundException(ErrorMessage.User.ERR_NOT_FOUND_USERNAME, new String[]{username}));
 
-        // Dùng Proxy để nhét PostId vào Comment mà không tốn Query
-        Post postProxy = postRepository.getReferenceById(postId);
-
         Comment comment = Comment.builder()
                 .content(requestDto.getContent())
                 .commentLevel(0)
-                .post(postProxy)
+                .post(post)
                 .user(user)
                 .build();
 
         Comment savedComment = commentRepository.save(comment);
 
         postRepository.incrementCommentCount(postId);
+
+        if (!post.getUser().getUsername().equals(username)) {
+            String message = user.getFirstName() + " đã bình luận về bài viết của bạn.";
+            notificationService.sendNotification(
+                    post.getUser(),
+                    user,
+                    NotificationType.COMMENT,
+                    String.valueOf(postId),
+                    message
+            );
+        }
 
         return commentMapper.toCommentResponseDto(savedComment);
     }
@@ -73,32 +84,38 @@ public class CommentServiceImpl implements CommentService {
         Long parentCommentId = requestDto.getParentCommentId();
         log.info("Adding reply to comment {} on post {} by user {}", parentCommentId, postId, username);
 
-        if (!postRepository.existsById(postId)) {
-            throw new NotFoundException(ErrorMessage.Post.ERR_NOT_FOUND_ID, new String[]{String.valueOf(postId)});
-        }
-
         User user = userRepository.findByUsernameOrEmail(username, username)
                 .orElseThrow(() -> new NotFoundException(ErrorMessage.User.ERR_NOT_FOUND_USERNAME, new String[]{username}));
 
         Comment parent = commentRepository.findById(parentCommentId)
                 .orElseThrow(() -> new NotFoundException(ErrorMessage.Comment.ERR_PARENT_COMMENT_NOT_FOUND, new String[]{String.valueOf(parentCommentId)}));
 
-        if (!parent.getPost().getId().equals(postId)) {
+        Post post = parent.getPost();
+        if (!post.getId().equals(postId)) {
             throw new NotFoundException(ErrorMessage.Comment.ERR_NOT_FOUND_COMMENT_IN_POST, new String[]{String.valueOf(parentCommentId), String.valueOf(postId)});
         }
-
-        Post postProxy = postRepository.getReferenceById(postId);
 
         Comment reply = Comment.builder()
                 .content(requestDto.getContent())
                 .commentLevel(parent.getCommentLevel() + 1)
-                .post(postProxy)
+                .post(post)
                 .user(user)
                 .parent(parent)
                 .build();
 
         Comment savedReply = commentRepository.save(reply);
         postRepository.incrementCommentCount(postId);
+
+        if (!parent.getUser().getUsername().equals(username)) {
+            String message = user.getFirstName() + " đã phản hồi bình luận của bạn.";
+            notificationService.sendNotification(
+                    parent.getUser(),
+                    user,
+                    NotificationType.COMMENT,
+                    String.valueOf(postId),
+                    message
+            );
+        }
 
         return commentMapper.toCommentResponseDto(savedReply);
     }

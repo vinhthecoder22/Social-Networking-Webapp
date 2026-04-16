@@ -1,6 +1,7 @@
 package com.example.socialnetworkingbackend.service.impl;
 
 import com.example.socialnetworkingbackend.constant.ErrorMessage;
+import com.example.socialnetworkingbackend.constant.NotificationType;
 import com.example.socialnetworkingbackend.constant.ReactionTypeConstant;
 import com.example.socialnetworkingbackend.domain.dto.pagination.PaginationRequestDto;
 import com.example.socialnetworkingbackend.domain.dto.pagination.PaginationResponseDto;
@@ -17,6 +18,7 @@ import com.example.socialnetworkingbackend.repository.PostRepository;
 import com.example.socialnetworkingbackend.repository.ReactionRepository;
 import com.example.socialnetworkingbackend.repository.UserRepository;
 import com.example.socialnetworkingbackend.security.UserPrincipal;
+import com.example.socialnetworkingbackend.service.impl.NotificationService;
 import com.example.socialnetworkingbackend.service.ReactionService;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
@@ -42,6 +44,7 @@ public class ReactionServiceImpl implements ReactionService {
     private final PostRepository postRepository;
     private final ReactionMapper reactionMapper;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Transactional
     @PreAuthorize("isAuthenticated()")
@@ -50,27 +53,25 @@ public class ReactionServiceImpl implements ReactionService {
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        String currentUserId = userPrincipal.getId();
 
-        // Kiểm tra User và Post (existsById => tối ưu RAM)
-        User user = userRepository.findById(userPrincipal.getId()).orElseThrow(
-                () -> new NotFoundException(ErrorMessage.User.ERR_NOT_FOUND_ID, new String[]{userPrincipal.getId()})
+        Post post = postRepository.findById(postId).orElseThrow(
+                () -> new NotFoundException(ErrorMessage.Post.ERR_NOT_FOUND_ID, new String[]{String.valueOf(postId)})
         );
-        if (!postRepository.existsById(postId)) {
-            throw new NotFoundException(ErrorMessage.Post.ERR_NOT_FOUND_ID, new String[]{String.valueOf(postId)});
-        }
+
+        User actor = userRepository.findById(currentUserId).orElseThrow(
+                () -> new NotFoundException(ErrorMessage.User.ERR_NOT_FOUND_ID, new String[]{currentUserId})
+        );
 
         // Xử lý Reaction
-        Reaction reaction = reactionRepository.findByUser_IdAndPost_Id(userPrincipal.getId(), postId);
+        Reaction reaction = reactionRepository.findByUser_IdAndPost_Id(currentUserId, postId);
         boolean isNewReaction = false;
 
         if (reaction == null) {
             reaction = new Reaction();
             isNewReaction = true;
-
-            // Chỉ gán User và Post khi tạo mới để tránh gán lại dư thừa
-            Post postProxy = postRepository.getReferenceById(postId); // Dùng proxy để gán ID mà không cần fetch DB
-            reaction.setPost(postProxy);
-            reaction.setUser(user);
+            reaction.setPost(post);
+            reaction.setUser(actor);
         }
 
         try {
@@ -84,6 +85,18 @@ public class ReactionServiceImpl implements ReactionService {
 
         if (isNewReaction) {
             postRepository.incrementReactionCount(postId);
+
+            // Không tự gửi thông báo cho chính mình nếu tự Like bài mình
+            if (!post.getUser().getId().equals(currentUserId)) {
+                String message = actor.getFirstName() + " đã bày tỏ cảm xúc về bài viết của bạn.";
+                notificationService.sendNotification(
+                        post.getUser(),
+                        actor,
+                        NotificationType.LIKE,
+                        String.valueOf(postId),
+                        message
+                );
+            }
         }
 
         return reactionMapper.toReactionResponseDto(savedReaction);

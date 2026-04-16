@@ -1,6 +1,7 @@
 package com.example.socialnetworkingbackend.service.impl;
 
 import com.example.socialnetworkingbackend.constant.ErrorMessage;
+import com.example.socialnetworkingbackend.constant.NotificationType;
 import com.example.socialnetworkingbackend.domain.dto.pagination.PaginationRequestDto;
 import com.example.socialnetworkingbackend.domain.dto.pagination.PaginationResponseDto;
 import com.example.socialnetworkingbackend.domain.dto.pagination.PagingMeta;
@@ -39,6 +40,7 @@ public class FollowServiceImpl implements FollowService {
     private final UserRepository userRepository;
     private final FollowMapper followMapper;
     private final UserMapper userMapper;
+    private final NotificationService notificationService;
 
     @PreAuthorize("isAuthenticated()")
     @Override
@@ -74,6 +76,16 @@ public class FollowServiceImpl implements FollowService {
         userRepository.incrementFollowingCount(followerId);
         // Tăng người theo dõi của người kia (+1 Follower)
         userRepository.incrementFollowerCount(followingId);
+
+        // Thông báo Real-time
+        String message = followerProxy.getFirstName() + " đã bắt đầu theo dõi bạn.";
+        notificationService.sendNotification(
+                followingProxy,
+                followerProxy,
+                NotificationType.FOLLOW,
+                null,
+                message
+        );
 
         return responseDto;
     }
