@@ -39,38 +39,41 @@ public class MediaServiceImpl implements MediaService {
     public boolean deleteMedia(List<String> publicIdList) {
         List<Media> mediaList = mediaRepository.findAllByPublicIdIn(publicIdList);
         log.info("mediaList: {}", mediaList.toString());
+
         List<String> invalidPublicId = new ArrayList<>();
         for (String publicId : publicIdList) {
-            if (!mediaList.stream().anyMatch(media -> media.getPublicId().equals(publicId))) {
+            if (mediaList.stream().noneMatch(media -> media.getPublicId().equals(publicId))) {
                 invalidPublicId.add(publicId);
             }
         }
-        if (mediaList.isEmpty()) {
+
+        if (!invalidPublicId.isEmpty()) {
             throw new NotFoundException(ErrorMessage.Media.ERR_NOT_FOUND_MEDIA, new String[]{String.valueOf(invalidPublicId)});
         }
-        else if (invalidPublicId.isEmpty()) {
-            mediaRepository.deleteAllByPublicIdIn(publicIdList);
-            for (Media media : mediaList) {
+
+        // Xóa dưới DB trước
+        mediaRepository.deleteAllByPublicIdIn(publicIdList);
+
+        // Xóa trên Cloudinary sau
+        for (Media media : mediaList) {
+            try {
                 Map<String, Object> metaData = ObjectUtils.asMap(
                         "resource_type", media.getResourceType(),
                         "invalidated", true
                 );
-                try {
-                    String result = cloudinary.uploader().destroy(media.getPublicId(), metaData).toString();
-                    if (media.getResourceType().equals("audio")) {
-                        Map<String, Object> metaDataThumbnail = ObjectUtils.asMap(
-                                "resource_type", "image",
-                                "invalidated", true
-                        );
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (Exception e) {
-                    e.printStackTrace();
+                cloudinary.uploader().destroy(media.getPublicId(), metaData);
+
+                if ("audio".equals(media.getResourceType())) {
+                    Map<String, Object> metaDataThumbnail = ObjectUtils.asMap(
+                            "resource_type", "image",
+                            "invalidated", true
+                    );
+                    cloudinary.uploader().destroy(media.getPublicId(), metaDataThumbnail);
                 }
+            } catch (Exception e) {
+                log.error("Failed to delete media on Cloudinary: {}", media.getPublicId(), e);
+                throw new RuntimeException("Failed to delete media on Cloudinary, transaction rolled back");
             }
-        } else {
-            throw new NotFoundException(ErrorMessage.Media.ERR_NOT_FOUND_MEDIA, new String[]{String.valueOf(invalidPublicId)});
         }
         return true;
     }

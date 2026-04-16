@@ -45,7 +45,7 @@ public class OtpForgotPasswordServiceImpl implements OtpForgotPasswordService {
                         new String[] { receivedEmail }));
 
         String fullName = user.getFirstName() + " " + user.getLastName();
-        String otpCode = generateOtpCode(receivedEmail);
+        String otpCode = generateOtpCode();
 
         Context context = new Context();
         context.setVariable("otpCode", otpCode);
@@ -61,15 +61,15 @@ public class OtpForgotPasswordServiceImpl implements OtpForgotPasswordService {
     }
 
     @Override
-    public VerifiedOtpResponseDto verifyOtpForgotPassword(String otpCode) {
-        String email = redisService.get("otp_mapping:" + otpCode);
-        if (email == null) {
-            throw new NotFoundException(ErrorMessage.OtpForgotPassword.ERR_NOT_FOUND, new String[] { otpCode });
+    public VerifiedOtpResponseDto verifyOtpForgotPassword(String email, String otpCode) {
+        String storedOtp = redisService.get("otp:" + email);
+
+        if (storedOtp == null) {
+            throw new BadRequestException(ErrorMessage.OtpForgotPassword.ERR_OTP_EXPIRED);
         }
 
-        String storedOtp = redisService.get("otp:" + email);
-        if (storedOtp == null || !storedOtp.equals(otpCode)) {
-            throw new BadRequestException(ErrorMessage.OtpForgotPassword.ERR_OTP_EXPIRED, new String[] { otpCode });
+        if (!storedOtp.equals(otpCode)) {
+            throw new BadRequestException(ErrorMessage.OtpForgotPassword.ERR_VERIFY_FAILED);
         }
 
         String resetPasswordToken = UUID.randomUUID().toString() + System.currentTimeMillis();
@@ -77,9 +77,8 @@ public class OtpForgotPasswordServiceImpl implements OtpForgotPasswordService {
         redisService.save("reset_token:" + resetPasswordToken, email, 5, TimeUnit.MINUTES);
 
         redisService.delete("otp:" + email);
-        redisService.delete("otp_mapping:" + otpCode);
 
-        log.info("Verified successfully otp code: {}", otpCode);
+        log.info("Verified successfully otp code for email: {}", email);
         return VerifiedOtpResponseDto.builder()
                 .resetPasswordToken(resetPasswordToken)
                 .resetPasswordExpiryDate(LocalDateTime.now().plusMinutes(5))
@@ -112,11 +111,9 @@ public class OtpForgotPasswordServiceImpl implements OtpForgotPasswordService {
         return true;
     }
 
-    private String generateOtpCode(String receivedEmail) {
+    private String generateOtpCode() {
         int otpCodeInt = 100000 + secureRandom.nextInt(900000);
-        String otpCode = String.valueOf(otpCodeInt);
-        redisService.save("otp_mapping:" + otpCode, receivedEmail, 5, TimeUnit.MINUTES);
-        return otpCode;
+        return String.valueOf(otpCodeInt);
     }
 
 }

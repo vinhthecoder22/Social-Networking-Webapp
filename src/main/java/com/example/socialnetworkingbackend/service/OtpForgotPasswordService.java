@@ -6,6 +6,6 @@ import com.example.socialnetworkingbackend.domain.dto.response.VerifiedOtpRespon
 public interface OtpForgotPasswordService {
 
     public boolean sendOtpForgotPassword(String receivedEmail);
-    public VerifiedOtpResponseDto verifyOtpForgotPassword(String otp);
+    public VerifiedOtpResponseDto verifyOtpForgotPassword(String email, String otpCode);
     public boolean confirmChangeNewPassword(ConfirmNewPasswordRequestDto requestDto);
 }
