@@ -4,6 +4,7 @@ import com.example.socialnetworkingbackend.base.RestApiV1;
 import com.example.socialnetworkingbackend.base.VsResponseUtil;
 import com.example.socialnetworkingbackend.constant.UrlConstant;
 import com.example.socialnetworkingbackend.domain.dto.pagination.PaginationFullRequestDto;
+import com.example.socialnetworkingbackend.domain.dto.pagination.PaginationRequestDto;
 import com.example.socialnetworkingbackend.domain.dto.pagination.PaginationResponseDto;
 import com.example.socialnetworkingbackend.domain.dto.request.PostRequestDto;
 import com.example.socialnetworkingbackend.domain.dto.response.PostResponseDto;
@@ -121,5 +122,19 @@ public class PostController {
     public ResponseEntity<?> deletePost(@PathVariable("id") Long id) {
         postService.deletePost(id);
         return VsResponseUtil.success(HttpStatus.NO_CONTENT);
+    }
+
+    @Operation(summary = "Lấy bảng tin (Newsfeed) của người dùng hiện tại")
+    @GetMapping(UrlConstant.Post.GET_NEWSFEED)
+    public ResponseEntity<?> getNewsfeed(
+            @RequestParam(defaultValue = "0") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+
+        PaginationRequestDto requestDto = PaginationRequestDto.builder()
+                .pageNum(pageNum)
+                .pageSize(pageSize)
+                .build();
+
+        return VsResponseUtil.success(postService.getNewsfeed(requestDto));
     }
 }

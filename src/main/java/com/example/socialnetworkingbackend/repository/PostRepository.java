@@ -24,8 +24,11 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     Page<Post> findByCategoryNameIn(List<String> categoryName, Pageable pageable);
 
-    @Query("SELECT p FROM Post p WHERE p.user IN (SELECT f.following FROM Follow f WHERE f.follower = :currentUser) ORDER BY p.createdAt DESC")
-    Page<Post> getNewsfeedForUser(@Param("currentUser") User currentUser, Pageable pageable);
+    @Query("SELECT p FROM Post p WHERE p.user.id IN " +
+            "(SELECT f.following.id FROM Follow f WHERE f.follower.id = :userId) " +
+            "OR p.user.id = :userId " +
+            "ORDER BY p.createdAt DESC")
+    Page<Post> getNewsfeedForUser(@Param("userId") String userId, Pageable pageable);
 
     @Modifying
     @Transactional

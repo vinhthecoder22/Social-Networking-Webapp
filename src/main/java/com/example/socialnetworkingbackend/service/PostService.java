@@ -1,6 +1,7 @@
 package com.example.socialnetworkingbackend.service;
 
 import com.example.socialnetworkingbackend.domain.dto.pagination.PaginationFullRequestDto;
+import com.example.socialnetworkingbackend.domain.dto.pagination.PaginationRequestDto;
 import com.example.socialnetworkingbackend.domain.dto.pagination.PaginationResponseDto;
 import com.example.socialnetworkingbackend.domain.dto.request.PostRequestDto;
 import com.example.socialnetworkingbackend.domain.dto.response.PostResponseDto;
@@ -23,5 +24,7 @@ public interface PostService {
     PostResponseDto getPostById(Long postId);
 
     PaginationResponseDto<PostResponseDto> getPostsTrendingForUser(PaginationFullRequestDto request) throws JsonProcessingException;
+
+    PaginationResponseDto<PostResponseDto> getNewsfeed(PaginationRequestDto requestDto);
 }
 

@@ -2,14 +2,12 @@ package com.example.socialnetworkingbackend.domain.dto.pagination;
 
 import com.example.socialnetworkingbackend.constant.CommonConstant;
 import io.swagger.v3.oas.annotations.Parameter;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Setter
+@Builder
 public class PaginationRequestDto {
 
   @Parameter(description = "Page you want to retrieve (1..N)")

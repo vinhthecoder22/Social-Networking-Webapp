@@ -58,6 +58,7 @@ public class UrlConstant {
         public static final String REACTION_FOR_POST = PRE_FIX + "/{postId}/reactions";
         public static final String CANCEL_REACTION_OF_POST = PRE_FIX + "/{postId}/reactions";
         public static final String GET_REACTIONS = PRE_FIX + "/{postId}/reactions";
+        public static final String GET_NEWSFEED = PRE_FIX + "/newsfeed";
 
         private Post() {
         }

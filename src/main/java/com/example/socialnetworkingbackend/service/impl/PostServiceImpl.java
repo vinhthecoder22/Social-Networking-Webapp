@@ -5,6 +5,7 @@ import com.example.socialnetworkingbackend.constant.ErrorMessage;
 import com.example.socialnetworkingbackend.constant.PostStatusConstant;
 import com.example.socialnetworkingbackend.constant.SortByDataConstant;
 import com.example.socialnetworkingbackend.domain.dto.pagination.PaginationFullRequestDto;
+import com.example.socialnetworkingbackend.domain.dto.pagination.PaginationRequestDto;
 import com.example.socialnetworkingbackend.domain.dto.pagination.PaginationResponseDto;
 import com.example.socialnetworkingbackend.domain.dto.pagination.PagingMeta;
 import com.example.socialnetworkingbackend.domain.dto.request.PostRequestDto;
@@ -229,5 +230,31 @@ public class PostServiceImpl implements PostService {
         return postCategoryList.stream()
                 .map(PostCategory::getName)
                 .collect(Collectors.toList());
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @Override
+    @Transactional(readOnly = true)
+    public PaginationResponseDto<PostResponseDto> getNewsfeed(PaginationRequestDto requestDto) {
+
+        String currentUserId = ((UserPrincipal) SecurityContextHolder.getContext()
+                .getAuthentication().getPrincipal()).getId();
+
+        Pageable pageable = PageRequest.of(requestDto.getPageNum(), requestDto.getPageSize());
+
+        Page<Post> postPage = postRepository.getNewsfeedForUser(currentUserId, pageable);
+
+        List<PostResponseDto> postList = postPage.getContent().stream()
+                .map(postMapper::toPostResponseDto)
+                .collect(Collectors.toList());
+
+        PagingMeta metadata = PagingMeta.builder()
+                .pageNum(requestDto.getPageNum())
+                .pageSize(requestDto.getPageSize())
+                .totalElements(postPage.getTotalElements())
+                .totalPages(postPage.getTotalPages())
+                .build();
+
+        return new PaginationResponseDto<>(metadata, postList);
     }
 }
