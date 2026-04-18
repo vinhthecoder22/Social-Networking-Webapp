@@ -82,15 +82,15 @@ public class JwtTokenProvider {
     }
 
     public String extractClaimUsername(String token) {
-        Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token).getBody().get(USERNAME_KEY).toString();
+        return Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token).getBody().get(USERNAME_KEY).toString();
     }
 
     public String extractSubjectFromJwt(String token) {
-        return Jwts.parserBuilder().setSigningKey(SECRET_KEY).build().parseClaimsJws(token).getBody().getSubject();
+        return Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token).getBody().getSubject();
     }
 
     public Date extractExpirationFromJwt(String token) {
-        Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token).getBody().getExpiration();
+        return Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token).getBody().getExpiration();
     }
 
     public Boolean isTokenExpired(String token) {

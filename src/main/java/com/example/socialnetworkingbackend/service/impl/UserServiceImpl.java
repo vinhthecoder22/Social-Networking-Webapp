@@ -14,6 +14,7 @@ import com.example.socialnetworkingbackend.domain.entity.Role;
 import com.example.socialnetworkingbackend.domain.entity.User;
 import com.example.socialnetworkingbackend.domain.mapper.UserMapper;
 import com.example.socialnetworkingbackend.exception.BadRequestException;
+import com.example.socialnetworkingbackend.exception.ConflictException;
 import com.example.socialnetworkingbackend.exception.NotFoundException;
 import com.example.socialnetworkingbackend.repository.RoleRepository;
 import com.example.socialnetworkingbackend.repository.UserRepository;
@@ -66,12 +67,22 @@ public class UserServiceImpl implements UserService {
         return userMapper.toUserDto(user);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @Override
+    @Transactional
     public UserResponseDto createUser(UserCreateDto dto) {
+        if (userRepository.existsByUsername(dto.getUsername())) {
+            throw new ConflictException(ErrorMessage.Auth.ERR_ALREADY_EXISTS_USERNAME);
+        }
+        if (userRepository.existsByEmail(dto.getEmail())) {
+            throw new ConflictException(ErrorMessage.Auth.ERR_ALREADY_EXISTS_EMAIL);
+        }
+
         User user = userMapper.toUser(dto);
-        Role role = roleRepository.findByName("USER")
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        Role role = roleRepository.findByName(RoleConstant.USER)
                 .orElseThrow(() -> new NotFoundException(ErrorMessage.Role.ERR_NOT_FOUND,
-                        new String[] { RoleConstant.USER.toString() }));
+                        new String[] { RoleConstant.USER }));
         user.setRole(role);
         return userMapper.toUserDto(userRepository.save(user));
     }

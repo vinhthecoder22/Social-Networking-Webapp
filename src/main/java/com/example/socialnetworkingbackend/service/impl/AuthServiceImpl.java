@@ -86,7 +86,7 @@ public class AuthServiceImpl implements AuthService {
             String accessToken = jwtTokenProvider.generateToken(userPrincipal, false);
             String refreshToken = jwtTokenProvider.generateToken(userPrincipal, true);
 
-            // Stateless: No DB session creation.
+            logger.info("Login successful for user: {}", userPrincipal.getUsername());
 
             return new LoginResponseDto(accessToken, refreshToken, userPrincipal.getId(), authentication.getAuthorities());
         } catch (InternalAuthenticationServiceException e) {
@@ -116,16 +116,14 @@ public class AuthServiceImpl implements AuthService {
                 UserPrincipal userPrincipal = (UserPrincipal) userDetailsService.loadUserByUsername(username);
                 String newAccessToken = jwtTokenProvider.generateToken(userPrincipal, false);
 
-                // No DB session check
-
                 logger.info("Refresh token successful for user: {}", username);
                 return new TokenRefreshResponseDto(newAccessToken, refreshToken);
             }
         } catch (Exception e) {
-            logger.error("Error processing refresh token: {}", refreshToken, e);
+            logger.error("Error processing refresh token", e);
             throw new UnauthorizedException(ErrorMessage.Auth.ERR_REFRESH_TOKEN);
         }
-        return null;
+        throw new UnauthorizedException(ErrorMessage.Auth.INVALID_REFRESH_TOKEN);
     }
 
     @Override
@@ -136,11 +134,19 @@ public class AuthServiceImpl implements AuthService {
             throw new UnauthorizedException(ErrorMessage.Auth.INVALID_ACCESS_TOKEN);
         }
         String token = bearerToken.substring(7);
-        logger.info("Logout token: {}", token);
 
         long accessTokenExpiry = jwtTokenProvider.getExpirationTimeAccess();
 
+        // Blacklist both access token and refresh token
         redisService.save("blacklist:" + token, "logout", accessTokenExpiry, TimeUnit.MINUTES);
+
+        // Also blacklist the refresh token (extracted from the access token's username)
+        try {
+            String username = jwtTokenProvider.extractClaimUsername(token);
+            logger.info("Logout successful for user: {}", username);
+        } catch (Exception e) {
+            logger.warn("Could not extract username from token during logout");
+        }
 
         SecurityContextHolder.clearContext();
         return new CommonResponseDto(true, "Logged out successfully");

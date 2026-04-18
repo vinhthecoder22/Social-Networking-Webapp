@@ -28,6 +28,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -62,7 +63,18 @@ public class FirebaseAuthService {
             newUser.setEmail(email);
             newUser.setUsername(email);
             newUser.setPassword("");
-            newUser.setFirstName(name);
+
+             // Safely split name into firstName and lastName
+             if (name != null && name.contains(" ")) {
+                 int lastSpace = name.lastIndexOf(' ');
+                 newUser.setFirstName(name.substring(0, lastSpace));
+                 newUser.setLastName(name.substring(lastSpace + 1));
+             } else {
+                 newUser.setFirstName(name != null ? name : "User");
+                 newUser.setLastName("");
+             }
+             newUser.setDob(LocalDate.of(2000, 1, 1)); // Default dob for OAuth users
+
             newUser.setImageUrl(picture);
             newUser.setProvider(AuthProvider.GOOGLE);
             newUser.setProviderId(uid);

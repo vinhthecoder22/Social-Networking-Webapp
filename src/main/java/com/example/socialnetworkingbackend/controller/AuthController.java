@@ -7,8 +7,13 @@ import com.example.socialnetworkingbackend.domain.dto.request.LoginRequestDto;
 import com.example.socialnetworkingbackend.domain.dto.request.RegisterRequestDto;
 import com.example.socialnetworkingbackend.domain.dto.request.TokenRefreshRequestDto;
 import com.example.socialnetworkingbackend.domain.dto.response.RegisterResponseDto;
+import com.example.socialnetworkingbackend.security.CurrentUser;
+import com.example.socialnetworkingbackend.security.UserPrincipal;
 import com.example.socialnetworkingbackend.service.AuthService;
+import com.example.socialnetworkingbackend.service.UserService;
+import com.example.socialnetworkingbackend.service.impl.FirebaseAuthService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,7 +21,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,7 +38,8 @@ import jakarta.validation.Valid;
 public class AuthController {
 
     private final AuthService authService;
-    private final com.example.socialnetworkingbackend.service.impl.FirebaseAuthService firebaseAuthService;
+    private final UserService userService;
+    private final FirebaseAuthService firebaseAuthService;
 
     @Operation(summary = "API Đăng ký tài khoản")
     @PostMapping(UrlConstant.Auth.REGISTER)
@@ -61,11 +66,12 @@ public class AuthController {
 
     @Operation(summary = "API Lấy thông tin người dùng hiện tại")
     @GetMapping(UrlConstant.Auth.ME)
-    public ResponseEntity<?> getCurrentUser(@AuthenticationPrincipal Object principal) {
+    public ResponseEntity<?> getCurrentUser(
+            @Parameter(hidden = true) @CurrentUser UserPrincipal principal) {
         if (principal == null) {
             return VsResponseUtil.error(HttpStatus.UNAUTHORIZED, HttpStatus.UNAUTHORIZED.getReasonPhrase());
         }
-        return VsResponseUtil.success(principal);
+        return VsResponseUtil.success(userService.getCurrentUser(principal));
     }
 
     @Operation(summary = "API Logout", description = "Xóa cookie chứa accessToken và refreshToken nếu có")
