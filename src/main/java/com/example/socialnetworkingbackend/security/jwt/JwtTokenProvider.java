@@ -5,6 +5,8 @@ import com.example.socialnetworkingbackend.exception.InvalidException;
 import com.example.socialnetworkingbackend.exception.UnauthorizedException;
 import com.example.socialnetworkingbackend.security.UserPrincipal;
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
@@ -16,6 +18,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import java.security.Key;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -52,7 +55,7 @@ public class JwtTokenProvider {
                     .setClaims(claim)
                     .setIssuedAt(new Date(System.currentTimeMillis()))
                     .setExpiration(new Date(System.currentTimeMillis() + (EXPIRATION_TIME_REFRESH_TOKEN * 60 * 1000L)))
-                    .signWith(SignatureAlgorithm.HS256, SECRET_KEY)
+                    .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                     .compact();
         }
         return Jwts.builder()
@@ -60,12 +63,12 @@ public class JwtTokenProvider {
                 .setSubject(userPrincipal.getId())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + (EXPIRATION_TIME_ACCESS_TOKEN * 60 * 1000L)))
-                .signWith(SignatureAlgorithm.HS256, SECRET_KEY)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
     public Authentication getAuthenticationByRefreshToken(String refreshToken) {
-        Claims claims = Jwts.parserBuilder().setSigningKey(SECRET_KEY).build().parseClaimsJws(refreshToken).getBody();
+        Claims claims = Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(refreshToken).getBody();
         if (!claims.get(CLAIM_TYPE).equals(TYPE_REFRESH) || ObjectUtils.isEmpty(claims.get(AUTHORITIES_KEY))
                 || ObjectUtils.isEmpty(claims.get(USERNAME_KEY))) {
             throw new InvalidException(ErrorMessage.Auth.INVALID_REFRESH_TOKEN);
@@ -79,7 +82,7 @@ public class JwtTokenProvider {
     }
 
     public String extractClaimUsername(String token) {
-        return Jwts.parserBuilder().setSigningKey(SECRET_KEY).build().parseClaimsJws(token).getBody().get(USERNAME_KEY).toString();
+        Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token).getBody().get(USERNAME_KEY).toString();
     }
 
     public String extractSubjectFromJwt(String token) {
@@ -87,11 +90,11 @@ public class JwtTokenProvider {
     }
 
     public Date extractExpirationFromJwt(String token) {
-        return Jwts.parserBuilder().setSigningKey(SECRET_KEY).build().parseClaimsJws(token).getBody().getExpiration();
+        Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token).getBody().getExpiration();
     }
 
     public Boolean isTokenExpired(String token) {
-        return extractExpirationFromJwt(token).after(new Date());
+        return extractExpirationFromJwt(token).before(new Date());
     }
 
     public boolean validateToken(String token) {
@@ -99,7 +102,7 @@ public class JwtTokenProvider {
             if (token == null) {
                 throw new UnauthorizedException(ErrorMessage.Auth.INVALID_ACCESS_TOKEN);
             }
-            Jwts.parserBuilder().setSigningKey(SECRET_KEY).build().parseClaimsJws(token);
+            Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token);
             return true;
         } catch (SignatureException ex) {
             log.error("Invalid JWT signature");
@@ -119,6 +122,11 @@ public class JwtTokenProvider {
 
     public long getExpirationTimeRefresh() {
         return EXPIRATION_TIME_REFRESH_TOKEN;
+    }
+
+    private Key getSigningKey() {
+        byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
 }

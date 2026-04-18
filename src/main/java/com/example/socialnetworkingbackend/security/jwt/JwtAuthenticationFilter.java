@@ -44,23 +44,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) {
 
         final String requestURI = request.getRequestURI();
-        log.info("Request URI: {}", requestURI);
-
-        if (requestURI.startsWith("/api/v1/auth/") ||
-                requestURI.startsWith("/api/v1/forgot-password/") ||
-                requestURI.startsWith("/swagger-ui") ||
-                requestURI.startsWith("/v3/api-docs") ||
-                requestURI.startsWith("/swagger-ui.html") ||
-                requestURI.startsWith("/login/oauth2/") ||
-                requestURI.startsWith("/api/v1/oauth2/info/")) {
-
-            filterChain.doFilter(request, response);
-            return;
-        }
+        log.debug("Processing authentication for URI: {}", requestURI);
 
         try {
             String jwt = getJwtFromRequest(request);
-            log.info("JWT: {}", jwt);
 
             if (StringUtils.hasText(jwt)) {
                 if (redisService.hasKey("blacklist:" + jwt)) {
@@ -105,8 +92,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
-        return path.startsWith("/oauth2/")
-                || path.startsWith("/login/oauth2/");
+        return path.startsWith("/api/v1/auth/")
+                || path.startsWith("/api/v1/forgot-password/")
+                || path.startsWith("/swagger-ui")
+                || path.startsWith("/v3/api-docs")
+                || path.startsWith("/swagger-ui.html")
+                || path.startsWith("/login/oauth2/")
+                || path.startsWith("/oauth2/")
+                || path.startsWith("/api/v1/oauth2/info/");
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {
