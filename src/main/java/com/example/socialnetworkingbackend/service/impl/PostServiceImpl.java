@@ -21,6 +21,7 @@ import com.example.socialnetworkingbackend.repository.PostCategoryRepository;
 import com.example.socialnetworkingbackend.repository.PostRepository;
 import com.example.socialnetworkingbackend.repository.UserRepository;
 import com.example.socialnetworkingbackend.security.UserPrincipal;
+import com.example.socialnetworkingbackend.service.PostCategoryService;
 import com.example.socialnetworkingbackend.service.PostMediaService;
 import com.example.socialnetworkingbackend.service.PostService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -53,7 +54,7 @@ public class PostServiceImpl implements PostService {
 
     private final PostRepository postRepository;
     private final PostCategoryRepository postCategoryRepository;
-    private final PostCategoryServiceImpl postCategoryService;
+    private final PostCategoryService postCategoryService;
     private final UserRepository userRepository;
     private final PostMapper postMapper;
     private final PostMediaService postMediaService;

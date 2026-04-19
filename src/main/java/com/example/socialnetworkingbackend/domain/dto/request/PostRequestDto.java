@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 @Data
 @Builder
@@ -23,8 +24,10 @@ public class PostRequestDto {
 
     private String singerName;
 
+    @NotNull(message = ErrorMessage.NOT_BLANK_FIELD)
     private Long categoryId;
 
+    @NotNull(message = ErrorMessage.NOT_BLANK_FIELD)
     private MediaType mediaType;
 
 }

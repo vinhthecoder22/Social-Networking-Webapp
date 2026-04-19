@@ -193,13 +193,8 @@ public class CommentServiceImpl implements CommentService {
     }
 
     private int calculateTotalCommentsToDelete(Comment comment) {
-        int count = 1;
-        if (comment.getReplies() != null && !comment.getReplies().isEmpty()) {
-            for (Comment reply : comment.getReplies()) {
-                count += calculateTotalCommentsToDelete(reply);
-            }
-        }
-        return count;
+        long descendantCount = commentRepository.countByParentId(comment.getId());
+        return 1 + (int) descendantCount;
     }
 
     private void validateCommentOwnership(Comment comment, Long postId, String username) {
@@ -207,7 +202,7 @@ public class CommentServiceImpl implements CommentService {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         boolean isAdmin = auth.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .anyMatch(role -> role.equals(RoleConstant.ADMIN.toString()) || role.equals("ROLE_" + RoleConstant.ADMIN.toString()));
+                .anyMatch(role -> role.equals(RoleConstant.ADMIN));
 
         if (!isAdmin) {
             if (!comment.getPost().getId().equals(postId)) {

@@ -1,6 +1,7 @@
 package com.example.socialnetworkingbackend.service.impl;
 
 import com.example.socialnetworkingbackend.constant.ErrorMessage;
+import com.example.socialnetworkingbackend.constant.PostStatusConstant;
 import com.example.socialnetworkingbackend.domain.dto.request.SharePostRequestDto;
 import com.example.socialnetworkingbackend.domain.dto.response.PostSummaryDto;
 import com.example.socialnetworkingbackend.domain.dto.response.SharePostResponseDto;
@@ -9,7 +10,6 @@ import com.example.socialnetworkingbackend.domain.entity.Post;
 import com.example.socialnetworkingbackend.domain.entity.User;
 import com.example.socialnetworkingbackend.domain.mapper.MediaMapper;
 import com.example.socialnetworkingbackend.exception.NotFoundException;
-import com.example.socialnetworkingbackend.repository.MediaRepository;
 import com.example.socialnetworkingbackend.repository.PostRepository;
 import com.example.socialnetworkingbackend.repository.UserRepository;
 import com.example.socialnetworkingbackend.service.ShareService;
@@ -76,6 +76,7 @@ public class ShareServiceImpl implements ShareService {
                 .originalPost(rootPost)
                 .mediaType(rootPost.getMediaType())
                 .user(currentUser)
+                .status(PostStatusConstant.APPROVED)
                 .reactionCount(0L)
                 .commentCount(0L)
                 .shareCount(0L)

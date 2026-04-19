@@ -84,15 +84,26 @@ public class PostController {
         log.info("transfer To original File");
         List<File> copiedFiles = new ArrayList<>();
         List<String> contentTypeList = new ArrayList<>();
-        for (MultipartFile multipartFile : files) {
-            contentTypeList.add(multipartFile.getContentType());
-            File tempFile = File.createTempFile("_upload_", multipartFile.getOriginalFilename());
-            multipartFile.transferTo(tempFile);
-            copiedFiles.add(tempFile);
+        try {
+            for (MultipartFile multipartFile : files) {
+                contentTypeList.add(multipartFile.getContentType());
+                File tempFile = File.createTempFile("_upload_", multipartFile.getOriginalFilename());
+                multipartFile.transferTo(tempFile);
+                copiedFiles.add(tempFile);
+            }
+            log.info("successfully transfer To original File");
+            PostResponseDto responseDto = postService.createPost(requestDto, copiedFiles, files, contentTypeList);
+            return VsResponseUtil.success(HttpStatus.CREATED, responseDto);
+        } finally {
+            // Luôn dọn dẹp các tập tin tạm thời để tránh disk space exhaustion
+            for (File tempFile : copiedFiles) {
+                if (tempFile != null && tempFile.exists()) {
+                    if (!tempFile.delete()) {
+                        log.warn("Failed to delete temp file: {}", tempFile.getAbsolutePath());
+                    }
+                }
+            }
         }
-        log.info("successfully transfer To original File");
-        PostResponseDto responseDto = postService.createPost(requestDto, copiedFiles, files, contentTypeList);
-        return VsResponseUtil.success(HttpStatus.CREATED, responseDto);
     }
 
     @Operation(summary = "Lấy tất cả bài viết theo từ khóa tiêu đề (có phân trang)")
