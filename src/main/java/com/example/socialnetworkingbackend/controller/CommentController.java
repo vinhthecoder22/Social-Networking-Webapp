@@ -23,7 +23,6 @@ import java.security.Principal;
 import java.util.List;
 
 @Slf4j
-@RestController
 @RestApiV1
 @RequiredArgsConstructor
 @Validated

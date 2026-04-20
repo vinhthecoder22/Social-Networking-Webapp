@@ -4,6 +4,7 @@ import com.example.socialnetworkingbackend.domain.entity.Post;
 import com.example.socialnetworkingbackend.domain.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -28,6 +29,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             "(SELECT f.following.id FROM Follow f WHERE f.follower.id = :userId) " +
             "OR p.user.id = :userId " +
             "ORDER BY p.createdAt DESC")
+    @EntityGraph(attributePaths = {"user", "mediaList", "category"})
     Page<Post> getNewsfeedForUser(@Param("userId") String userId, Pageable pageable);
 
     @Modifying
