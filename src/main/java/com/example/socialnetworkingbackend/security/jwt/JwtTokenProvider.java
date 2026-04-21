@@ -37,10 +37,10 @@ public class JwtTokenProvider {
     private String SECRET_KEY;
 
     @Value("${jwt.access.expiration_time}")
-    private Integer EXPIRATION_TIME_ACCESS_TOKEN;
+    private Long EXPIRATION_TIME_ACCESS_TOKEN;
 
     @Value("${jwt.refresh.expiration_time}")
-    private Integer EXPIRATION_TIME_REFRESH_TOKEN;
+    private Long EXPIRATION_TIME_REFRESH_TOKEN;
 
     public String generateToken(UserPrincipal userPrincipal, Boolean isRefreshToken) {
         String authorities = userPrincipal.getAuthorities().stream()
