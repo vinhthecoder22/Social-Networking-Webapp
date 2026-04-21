@@ -29,6 +29,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 @Log4j2
 @RequiredArgsConstructor
@@ -74,9 +75,11 @@ public class AuthController {
         return VsResponseUtil.success(userService.getCurrentUser(principal));
     }
 
-    @Operation(summary = "API Logout", description = "Xóa cookie chứa accessToken và refreshToken nếu có")
+    @Operation(summary = "API Logout", description = "Blacklist access token & refresh token, xóa cookie")
     @PostMapping(UrlConstant.Auth.LOGOUT)
-    public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<?> logout(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    @RequestHeader(value = "X-Refresh-Token", required = false) String refreshToken) {
 
         Cookie clearAccessToken = new Cookie("accessToken", "");
         clearAccessToken.setMaxAge(0);
@@ -91,7 +94,7 @@ public class AuthController {
         clearRefreshToken.setHttpOnly(true);
         clearRefreshToken.setSecure(true);
         response.addCookie(clearRefreshToken);
-        return VsResponseUtil.success(authService.logout(request));
+        return VsResponseUtil.success(authService.logout(request, refreshToken));
     }
 
     @Operation(summary = "API Đăng nhập bằng Firebase (Google)", description = "Gửi ID Token từ Firebase Client để nhận Access Token")

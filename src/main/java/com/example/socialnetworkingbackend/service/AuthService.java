@@ -17,6 +17,6 @@ public interface AuthService {
 
     TokenRefreshResponseDto refresh(TokenRefreshRequestDto request);
 
-    CommonResponseDto logout(HttpServletRequest request);
+    CommonResponseDto logout(HttpServletRequest request, String refreshToken);
 
 }

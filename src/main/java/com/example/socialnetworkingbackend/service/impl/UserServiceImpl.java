@@ -124,6 +124,7 @@ public class UserServiceImpl implements UserService {
 
     @PreAuthorize("#id == authentication.principal.id or hasRole('ADMIN')")
     @Override
+    @Transactional
     public UserResponseDto updateUserName(String id, UserUpdateDto dto) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(ErrorMessage.User.ERR_NOT_FOUND_ID, new String[] { id }));

@@ -86,6 +86,14 @@ public class AuthServiceImpl implements AuthService {
             String accessToken = jwtTokenProvider.generateToken(userPrincipal, false);
             String refreshToken = jwtTokenProvider.generateToken(userPrincipal, true);
 
+            long refreshExpiry = jwtTokenProvider.getExpirationTimeRefresh();
+
+            redisService.saveRefreshToken(
+                    userPrincipal.getId(),
+                    refreshToken,
+                    refreshExpiry,
+                    TimeUnit.MINUTES);
+
             logger.info("Login successful for user: {}", userPrincipal.getUsername());
 
             return new LoginResponseDto(accessToken, refreshToken, userPrincipal.getId(), authentication.getAuthorities());
@@ -98,54 +106,87 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public TokenRefreshResponseDto refresh(TokenRefreshRequestDto request) {
-        logger.info("Processing refresh token request");
 
         String refreshToken = request.getRefreshToken();
+
         if (!StringUtils.hasText(refreshToken)) {
-            logger.error("Empty refresh token");
             throw new UnauthorizedException(ErrorMessage.Auth.INVALID_REFRESH_TOKEN);
         }
 
-        if (redisService.hasKey("blacklist:" + refreshToken)) {
-            throw new UnauthorizedException(ErrorMessage.Auth.INVALID_REFRESH_TOKEN);
+        // 1. Check blacklist
+        if (redisService.isBlacklisted(refreshToken)) {
+            throw new UnauthorizedException("Refresh token revoked");
         }
 
         try {
-            if (jwtTokenProvider.validateToken(refreshToken)) {
-                String username = jwtTokenProvider.extractClaimUsername(refreshToken);
-                UserPrincipal userPrincipal = (UserPrincipal) userDetailsService.loadUserByUsername(username);
-                String newAccessToken = jwtTokenProvider.generateToken(userPrincipal, false);
-
-                logger.info("Refresh token successful for user: {}", username);
-                return new TokenRefreshResponseDto(newAccessToken, refreshToken);
+            // 2. Validate token
+            if (!jwtTokenProvider.validateToken(refreshToken)) {
+                throw new UnauthorizedException(ErrorMessage.Auth.INVALID_REFRESH_TOKEN);
             }
+
+            String username = jwtTokenProvider.extractClaimUsername(refreshToken);
+            UserPrincipal userPrincipal = (UserPrincipal) userDetailsService.loadUserByUsername(username);
+
+            String userId = userPrincipal.getId();
+
+            // 3. Check current token in Redis (ANTI-REPLAY)
+            String currentToken = redisService.getRefreshToken(userId);
+
+            if (currentToken == null || !currentToken.equals(refreshToken)) {
+                throw new UnauthorizedException("Refresh token replay detected");
+            }
+
+            // 4. Generate new tokens
+            String newAccessToken = jwtTokenProvider.generateToken(userPrincipal, false);
+            String newRefreshToken = jwtTokenProvider.generateToken(userPrincipal, true);
+
+            long refreshExpiry = jwtTokenProvider.getExpirationTimeRefresh();
+
+            // 5. Rotate token
+            redisService.blacklistToken(refreshToken, refreshExpiry, TimeUnit.MINUTES);
+            redisService.saveRefreshToken(userId, newRefreshToken, refreshExpiry, TimeUnit.MINUTES);
+
+            logger.info("Refresh token rotated successfully for user: {}", username);
+
+            return new TokenRefreshResponseDto(newAccessToken, newRefreshToken);
+
+        } catch (UnauthorizedException e) {
+            throw e;
         } catch (Exception e) {
             logger.error("Error processing refresh token", e);
             throw new UnauthorizedException(ErrorMessage.Auth.ERR_REFRESH_TOKEN);
         }
-        throw new UnauthorizedException(ErrorMessage.Auth.INVALID_REFRESH_TOKEN);
     }
 
     @Override
-    public CommonResponseDto logout(HttpServletRequest request) {
+    public CommonResponseDto logout(HttpServletRequest request, String refreshToken) {
         logger.info("Processing logout request");
         String bearerToken = request.getHeader("Authorization");
         if (!StringUtils.hasText(bearerToken) || !bearerToken.startsWith("Bearer ")) {
             throw new UnauthorizedException(ErrorMessage.Auth.INVALID_ACCESS_TOKEN);
         }
-        String token = bearerToken.substring(7);
+        String accessToken = bearerToken.substring(7);
 
         long accessTokenExpiry = jwtTokenProvider.getExpirationTimeAccess();
+        long refreshTokenExpiry = jwtTokenProvider.getExpirationTimeRefresh();
 
-        // Blacklist both access token and refresh token
-        redisService.save("blacklist:" + token, "logout", accessTokenExpiry, TimeUnit.MINUTES);
+        // Blacklist access token
+        redisService.save("blacklist:" + accessToken, "logout", accessTokenExpiry, TimeUnit.MINUTES);
 
-        // Also blacklist the refresh token (extracted from the access token's username)
-        try {
-            String username = jwtTokenProvider.extractClaimUsername(token);
-            logger.info("Logout successful for user: {}", username);
-        } catch (Exception e) {
-            logger.warn("Could not extract username from token during logout");
+        // Blacklist refresh token if provided
+        if (StringUtils.hasText(refreshToken)) {
+            redisService.blacklistToken(refreshToken, refreshTokenExpiry, TimeUnit.MINUTES);
+
+            try {
+                String username = jwtTokenProvider.extractClaimUsername(refreshToken);
+                UserPrincipal userPrincipal = (UserPrincipal) userDetailsService.loadUserByUsername(username);
+
+                // Delete current stored refresh token from Redis
+                redisService.deleteRefreshToken(userPrincipal.getId());
+
+            } catch (Exception e) {
+                logger.warn("Cannot extract user from refresh token");
+            }
         }
 
         SecurityContextHolder.clearContext();
