@@ -243,18 +243,24 @@ public class PostServiceImpl implements PostService {
 
         Pageable pageable = PageRequest.of(requestDto.getPageNum(), requestDto.getPageSize());
 
-        Page<Post> postPage = postRepository.getNewsfeedForUser(currentUserId, pageable);
-
-        List<PostResponseDto> postList = postPage.getContent().stream()
-                .map(postMapper::toPostResponseDto)
-                .collect(Collectors.toList());
+        Page<Long> idPage = postRepository.getNewsfeedPostIds(currentUserId, pageable);
 
         PagingMeta metadata = PagingMeta.builder()
                 .pageNum(requestDto.getPageNum())
                 .pageSize(requestDto.getPageSize())
-                .totalElements(postPage.getTotalElements())
-                .totalPages(postPage.getTotalPages())
+                .totalElements(idPage.getTotalElements())
+                .totalPages(idPage.getTotalPages())
                 .build();
+
+        if (idPage.isEmpty()) {
+            return new PaginationResponseDto<>(metadata, List.of());
+        }
+
+        List<Post> posts = postRepository.findPostsWithDetailsByIds(idPage.getContent());
+
+        List<PostResponseDto> postList = posts.stream()
+                .map(postMapper::toPostResponseDto)
+                .collect(Collectors.toList());
 
         return new PaginationResponseDto<>(metadata, postList);
     }

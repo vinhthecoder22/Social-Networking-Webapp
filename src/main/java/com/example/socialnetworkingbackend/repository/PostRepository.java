@@ -1,7 +1,6 @@
 package com.example.socialnetworkingbackend.repository;
 
 import com.example.socialnetworkingbackend.domain.entity.Post;
-import com.example.socialnetworkingbackend.domain.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -25,12 +24,31 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     Page<Post> findByCategoryNameIn(List<String> categoryName, Pageable pageable);
 
-    @Query("SELECT p FROM Post p WHERE p.user.id IN " +
-            "(SELECT f.following.id FROM Follow f WHERE f.follower.id = :userId) " +
-            "OR p.user.id = :userId " +
-            "ORDER BY p.createdAt DESC")
-    @EntityGraph(attributePaths = {"user", "mediaList", "category"})
-    Page<Post> getNewsfeedForUser(@Param("userId") String userId, Pageable pageable);
+    // Step 1: Get paginated post IDs using UNION ALL
+    @Query(value = """
+            SELECT p.id FROM post p
+            INNER JOIN follow f ON f.following_id = p.user_id
+            WHERE f.follower_id = :userId AND p.delete_flag = false
+            UNION ALL
+            SELECT p.id FROM post p
+            WHERE p.user_id = :userId AND p.delete_flag = false
+            ORDER BY id DESC
+            """, countQuery = """
+            SELECT COUNT(*) FROM (
+                SELECT p.id FROM post p
+                INNER JOIN follow f ON f.following_id = p.user_id
+                WHERE f.follower_id = :userId AND p.delete_flag = false
+                UNION ALL
+                SELECT p.id FROM post p
+                WHERE p.user_id = :userId AND p.delete_flag = false
+            ) t
+            """, nativeQuery = true)
+    Page<Long> getNewsfeedPostIds(@Param("userId") String userId, Pageable pageable);
+
+    // Step 2: Hydrate posts by IDs with eager fetching
+    @EntityGraph(attributePaths = { "user", "mediaList", "category" })
+    @Query("SELECT p FROM Post p WHERE p.id IN :ids ORDER BY p.createdAt DESC")
+    List<Post> findPostsWithDetailsByIds(@Param("ids") List<Long> ids);
 
     @Modifying
     @Transactional

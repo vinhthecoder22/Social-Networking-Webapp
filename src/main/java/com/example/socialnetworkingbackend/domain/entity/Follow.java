@@ -11,7 +11,9 @@ import jakarta.persistence.*;
 @Setter
 @Builder
 @Entity
-@Table(name = "follow")
+@Table(name = "follow", indexes = {
+        @Index(name = "idx_follow_follower", columnList = "follower_id, following_id")
+})
 public class Follow extends DateAuditing {
 
     @Id

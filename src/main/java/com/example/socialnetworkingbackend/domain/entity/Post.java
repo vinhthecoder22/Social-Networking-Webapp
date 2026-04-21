@@ -16,7 +16,8 @@ import java.util.List;
 @Entity
 @Table(name = "post", indexes = {
         @Index(name = "idx_post_user_id", columnList = "user_id"),
-        @Index(name = "idx_post_created_at", columnList = "created_at")
+        @Index(name = "idx_post_created_at", columnList = "created_at"),
+        @Index(name = "idx_post_user_created", columnList = "user_id, created_at")
 })
 @SQLDelete(sql = "UPDATE post SET delete_flag = true WHERE id=? AND version=?")
 @SQLRestriction("delete_flag = false")
