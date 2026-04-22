@@ -2,6 +2,7 @@ package com.example.socialnetworkingbackend.config;
 
 import com.example.socialnetworkingbackend.security.jwt.JwtTokenProvider;
 import com.example.socialnetworkingbackend.service.CustomUserDetailsService;
+import com.example.socialnetworkingbackend.service.RedisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
@@ -26,6 +27,7 @@ public class WebSocketSecurityConfig implements WebSocketMessageBrokerConfigurer
 
     private final JwtTokenProvider jwtTokenProvider;
     private final CustomUserDetailsService userDetailsService;
+    private final RedisService redisService;
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
@@ -40,6 +42,12 @@ public class WebSocketSecurityConfig implements WebSocketMessageBrokerConfigurer
                     if (token != null && token.startsWith("Bearer ")) {
                         token = token.substring(7);
                         try {
+                            // Check blacklist before validating token
+                            if (redisService.hasKey("blacklist:" + token)) {
+                                log.warn("WebSocket connection rejected: token is blacklisted");
+                                return null;
+                            }
+
                             if (jwtTokenProvider.validateToken(token)) {
                                 String username = jwtTokenProvider.extractClaimUsername(token);
                                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
