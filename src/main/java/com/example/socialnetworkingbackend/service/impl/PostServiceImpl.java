@@ -73,10 +73,18 @@ public class PostServiceImpl implements PostService {
         }
 
         if (requestDto.getMediaType() != null) {
-            String contentTypeMedia = contentTypeFileList.get(0).split("/")[0];
-            log.info("Content type Media: {}", contentTypeMedia);
-            if (!contentTypeMedia.equals(requestDto.getMediaType().toString().toLowerCase())) {
-                throw new BadRequestException(ErrorMessage.Post.ERR_FILES_INVALID_FORMAT);
+            String expectedType = requestDto.getMediaType().toString().toLowerCase();
+
+            for (String contentType : contentTypeFileList) {
+                if (contentType == null || !contentType.contains("/")) {
+                    throw new BadRequestException(ErrorMessage.Post.ERR_FILES_INVALID_FORMAT);
+                }
+
+                String actualType = contentType.split("/")[0].toLowerCase();
+
+                if (!actualType.equals(expectedType)) {
+                    throw new BadRequestException(ErrorMessage.Post.ERR_FILES_INVALID_FORMAT);
+                }
             }
         }
 

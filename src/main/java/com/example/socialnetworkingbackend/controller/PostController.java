@@ -87,7 +87,14 @@ public class PostController {
         try {
             for (MultipartFile multipartFile : files) {
                 contentTypeList.add(multipartFile.getContentType());
-                File tempFile = File.createTempFile("_upload_", multipartFile.getOriginalFilename());
+                // Sanitize filename - only use the file extension, not the original name
+                String originalName = multipartFile.getOriginalFilename();
+                String extension = (originalName != null && originalName.contains("."))
+                        ? originalName.substring(originalName.lastIndexOf("."))
+                        : ".tmp";
+                // Remove any non-alphanumeric chars from extension
+                extension = extension.replaceAll("[^a-zA-Z0-9.]", "");
+                File tempFile = File.createTempFile("_upload_", extension);
                 multipartFile.transferTo(tempFile);
                 copiedFiles.add(tempFile);
             }
