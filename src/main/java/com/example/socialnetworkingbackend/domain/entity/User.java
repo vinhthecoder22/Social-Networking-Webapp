@@ -22,7 +22,7 @@ import java.util.List;
 @Builder
 @Entity
 @Table(name = "user_account")
-@SQLDelete(sql = "UPDATE user_account SET delete_flag = true WHERE id=?")
+@SQLDelete(sql = "UPDATE user_account SET delete_flag = true WHERE id=? AND version=?")
 @SQLRestriction("delete_flag = false")
 public class User extends FlagUserDateAuditing {
 
@@ -84,4 +84,7 @@ public class User extends FlagUserDateAuditing {
     @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JoinColumn(name = "setting_id", referencedColumnName = "id")
     private UserSetting userSetting;
+
+    @Version
+    private Long version;
 }

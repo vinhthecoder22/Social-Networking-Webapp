@@ -9,7 +9,9 @@ import org.hibernate.annotations.OnDeleteAction;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "reaction")
+@Table(name = "reaction", uniqueConstraints = {
+        @UniqueConstraint(name = "UK_reaction_user_post", columnNames = {"user_id", "post_id"})
+})
 @Getter
 @Setter
 @Builder

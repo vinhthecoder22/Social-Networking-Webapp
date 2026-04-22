@@ -13,6 +13,8 @@ import jakarta.persistence.*;
 @Entity
 @Table(name = "follow", indexes = {
         @Index(name = "idx_follow_follower", columnList = "follower_id, following_id")
+}, uniqueConstraints = {
+        @UniqueConstraint(name = "UK_follow_follower_following", columnNames = {"follower_id", "following_id"})
 })
 public class Follow extends DateAuditing {
 
