@@ -70,7 +70,7 @@ public class ImageProcessingService {
     }
 
     private MediaResponseDto uploadImageToCloudinary(File imageFile, Media imageUpload) {
-        log.info("Uploading video to cloudinary");
+        log.info("Uploading image to cloudinary");
         try {
             updateMediaStatusAsync(imageUpload, UploadStatusConstant.PROCESSING);
             Map<String, Object> metaData = ObjectUtils.asMap(
@@ -78,7 +78,7 @@ public class ImageProcessingService {
                     "quality", "auto",
                     "fetch_format", "auto",
                     "public_id", imageUpload.getPublicId());
-            log.info("start uploading video to cloudinary");
+            log.info("start uploading image to cloudinary");
             Map<String, Object> result = cloudinary.uploader().upload(imageFile, metaData);
 
             imageUpload.setDataSize(imageFile.length());
@@ -92,7 +92,7 @@ public class ImageProcessingService {
 
             MediaResponseDto responseDto = mediaMapper.toMediaResponseDto(mediaRepository.save(imageUpload));
 
-            log.info("Uploaded video to cloudinary successfully");
+            log.info("Uploaded image to cloudinary successfully");
             return responseDto;
         } catch (Exception e) {
             log.info("have been error in method uploadImageToCloudinary: {}", e.getMessage());
@@ -108,7 +108,6 @@ public class ImageProcessingService {
         }
     }
 
-    @Async("rawImageExecutor")
     public void updateMediaStatusAsync(Media media, UploadStatusConstant status) {
         try {
             media.setStatus(status);

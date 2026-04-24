@@ -192,7 +192,6 @@ public class VideoProcessingService {
 
     }
 
-    @Async("rawVideoExecutor")
     public void updateMediaStatusAsync(Media media, UploadStatusConstant status) {
         try {
             media.setStatus(status);

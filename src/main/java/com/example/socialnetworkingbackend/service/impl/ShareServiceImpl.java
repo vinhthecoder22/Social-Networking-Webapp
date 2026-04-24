@@ -50,10 +50,13 @@ public class ShareServiceImpl implements ShareService {
 
         postRepository.incrementShareCount(rootPost.getId());
 
+        long updatedShareCount = postRepository.findById(rootPost.getId())
+                .map(Post::getShareCount).orElse(rootPost.getShareCount() + 1);
+
         PostSummaryDto postSummaryDto = new PostSummaryDto();
         postSummaryDto.setTitle(rootPost.getTitle());
         postSummaryDto.setContent(rootPost.getContent());
-        postSummaryDto.setShareCount(rootPost.getShareCount() + 1);
+        postSummaryDto.setShareCount(updatedShareCount);
 
         UserSummaryDto originalAuthor = new UserSummaryDto(
                 rootPost.getUser().getId(),
@@ -76,7 +79,7 @@ public class ShareServiceImpl implements ShareService {
                 .originalPost(rootPost)
                 .mediaType(rootPost.getMediaType())
                 .user(currentUser)
-                .status(PostStatusConstant.APPROVED)
+                .status(PostStatusConstant.PENDING_MODERATION)
                 .reactionCount(0L)
                 .commentCount(0L)
                 .shareCount(0L)
