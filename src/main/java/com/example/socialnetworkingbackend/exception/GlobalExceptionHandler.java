@@ -49,7 +49,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<RestData<?>> handleValidException(MethodArgumentNotValidException ex) {
         Map<String, String> result = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach((error) -> {
-            String fieldName = ((FieldError) error).getField();
+            String fieldName;
+            if (error instanceof FieldError) {
+                fieldName = ((FieldError) error).getField();
+            } else {
+                fieldName = error.getObjectName();
+            }
             String errorMessage = messageSource.getMessage(Objects.requireNonNull(error.getDefaultMessage()), null,
                     LocaleContextHolder.getLocale());
             result.put(fieldName, errorMessage);
