@@ -2,11 +2,8 @@ package com.example.socialnetworkingbackend.domain.entity;
 
 import com.example.socialnetworkingbackend.domain.entity.common.FlagUserDateAuditing;
 import lombok.*;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
-import org.hibernate.annotations.Formula;
 
 import jakarta.persistence.*;
 import java.util.ArrayList;
@@ -14,7 +11,9 @@ import java.util.List;
 
 @Entity
 @Table(name = "comment", indexes = {
-        @Index(name = "idx_comment_post_id", columnList = "post_id")
+        @Index(name = "idx_comment_post_id", columnList = "post_id"),
+        @Index(name = "idx_post_parent_id", columnList = "post_id, parent_id, id"),
+        @Index(name = "idx_parent_id_id", columnList = "parent_id, id")
 })
 @SQLDelete(sql = "UPDATE comment SET delete_flag = true WHERE id=?")
 @SQLRestriction("delete_flag = false")
@@ -49,8 +48,12 @@ public class Comment extends FlagUserDateAuditing {
     @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> replies = new ArrayList<>();
 
-    // Tự động đếm số reply bằng SQL (bỏ qua các comment đã bị soft delete)
-    @Formula("(SELECT COUNT(c.id) FROM comment c WHERE c.parent_id = id AND c.delete_flag = false)")
-    private Integer replyCount;
+    @Column(name = "reply_count", nullable = false, columnDefinition = "INT DEFAULT 0")
+    @Builder.Default
+    private Integer replyCount = 0;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reply_to_user_id")
+    private User replyToUser;
 
 }

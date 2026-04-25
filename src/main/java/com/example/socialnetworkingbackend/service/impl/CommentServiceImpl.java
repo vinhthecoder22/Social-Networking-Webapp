@@ -6,6 +6,7 @@ import com.example.socialnetworkingbackend.constant.RoleConstant;
 import com.example.socialnetworkingbackend.domain.dto.request.CommentRequestDto;
 import com.example.socialnetworkingbackend.domain.dto.request.ReplyCommentRequestDto;
 import com.example.socialnetworkingbackend.domain.dto.response.CommentResponseDto;
+import com.example.socialnetworkingbackend.domain.dto.response.CursorPageResponse;
 import com.example.socialnetworkingbackend.domain.entity.Comment;
 import com.example.socialnetworkingbackend.domain.entity.Post;
 import com.example.socialnetworkingbackend.domain.entity.User;
@@ -18,8 +19,7 @@ import com.example.socialnetworkingbackend.repository.UserRepository;
 import com.example.socialnetworkingbackend.service.CommentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -44,7 +45,6 @@ public class CommentServiceImpl implements CommentService {
     @Override
     @Transactional
     public CommentResponseDto addComment(Long postId, CommentRequestDto requestDto, String username) {
-        // Fetch Post lên 1 lần duy nhất (Validate + lấy User bắn thông báo)
         Post post = postRepository.findById(postId).orElseThrow(
                 () -> new NotFoundException(ErrorMessage.Post.ERR_NOT_FOUND_ID, new String[]{String.valueOf(postId)})
         );
@@ -57,20 +57,16 @@ public class CommentServiceImpl implements CommentService {
                 .commentLevel(0)
                 .post(post)
                 .user(user)
+                .replyCount(0)
                 .build();
 
         Comment savedComment = commentRepository.save(comment);
-
         postRepository.incrementCommentCount(postId);
 
         if (!post.getUser().getUsername().equals(username)) {
-            String message = user.getFirstName() + " đã bình luận về bài viết của bạn.";
             notificationService.sendNotification(
-                    post.getUser(),
-                    user,
-                    NotificationType.COMMENT,
-                    String.valueOf(postId),
-                    message
+                    post.getUser(), user, NotificationType.COMMENT,
+                    String.valueOf(postId), user.getFirstName() + " đã bình luận bài viết của bạn."
             );
         }
 
@@ -81,39 +77,40 @@ public class CommentServiceImpl implements CommentService {
     @Override
     @Transactional
     public CommentResponseDto replyToComment(Long postId, ReplyCommentRequestDto requestDto, String username) {
-        Long parentCommentId = requestDto.getParentCommentId();
-        log.info("Adding reply to comment {} on post {} by user {}", parentCommentId, postId, username);
-
         User user = userRepository.findByUsernameOrEmail(username, username)
                 .orElseThrow(() -> new NotFoundException(ErrorMessage.User.ERR_NOT_FOUND_USERNAME, new String[]{username}));
 
-        Comment parent = commentRepository.findById(parentCommentId)
-                .orElseThrow(() -> new NotFoundException(ErrorMessage.Comment.ERR_PARENT_COMMENT_NOT_FOUND, new String[]{String.valueOf(parentCommentId)}));
+        Comment parentOrTarget = commentRepository.findById(requestDto.getParentCommentId())
+                .orElseThrow(() -> new NotFoundException(ErrorMessage.Comment.ERR_PARENT_COMMENT_NOT_FOUND));
 
-        Post post = parent.getPost();
-        if (!post.getId().equals(postId)) {
-            throw new NotFoundException(ErrorMessage.Comment.ERR_NOT_FOUND_COMMENT_IN_POST, new String[]{String.valueOf(parentCommentId), String.valueOf(postId)});
+        if (!parentOrTarget.getPost().getId().equals(postId)) {
+            throw new NotFoundException(ErrorMessage.Comment.ERR_NOT_FOUND_COMMENT_IN_POST);
         }
+
+        // Ép về 2 level: Xác định Root Comment và User đang bị tag
+        Comment rootParent = (parentOrTarget.getParent() != null) ? parentOrTarget.getParent() : parentOrTarget;
+        User replyToUser = (parentOrTarget.getParent() != null) ? parentOrTarget.getUser() : null;
 
         Comment reply = Comment.builder()
                 .content(requestDto.getContent())
-                .commentLevel(parent.getCommentLevel() + 1)
-                .post(post)
+                .commentLevel(1)
+                .post(parentOrTarget.getPost())
                 .user(user)
-                .parent(parent)
+                .parent(rootParent)
+                .replyToUser(replyToUser)
+                .replyCount(0)
                 .build();
 
         Comment savedReply = commentRepository.save(reply);
+
+        // Tăng count ở Root Comment và Post
+        commentRepository.updateReplyCount(rootParent.getId(), 1);
         postRepository.incrementCommentCount(postId);
 
-        if (!parent.getUser().getUsername().equals(username)) {
-            String message = user.getFirstName() + " đã phản hồi bình luận của bạn.";
+        if (!parentOrTarget.getUser().getUsername().equals(username)) {
             notificationService.sendNotification(
-                    parent.getUser(),
-                    user,
-                    NotificationType.COMMENT,
-                    String.valueOf(postId),
-                    message
+                    parentOrTarget.getUser(), user, NotificationType.COMMENT,
+                    String.valueOf(postId), user.getFirstName() + " đã phản hồi bình luận của bạn."
             );
         }
 
@@ -124,17 +121,11 @@ public class CommentServiceImpl implements CommentService {
     @Override
     @Transactional
     public CommentResponseDto updateComment(Long commentId, String content, Long postId, String username) {
-        log.debug("Updating comment {} on post {} by user {}", commentId, postId, username);
-
-        Comment comment = commentRepository.findById(commentId).orElseThrow(
-                () -> new NotFoundException(ErrorMessage.Comment.ERR_NOT_FOUND_ID, new String[]{String.valueOf(commentId)})
-        );
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new NotFoundException(ErrorMessage.Comment.ERR_NOT_FOUND_ID));
 
         validateCommentOwnership(comment, postId, username);
-
         comment.setContent(content);
-
-        log.debug("Comment {} updated successfully", commentId);
         return commentMapper.toCommentResponseDto(commentRepository.save(comment));
     }
 
@@ -142,63 +133,76 @@ public class CommentServiceImpl implements CommentService {
     @Override
     @Transactional
     public void deleteComment(Long postId, Long commentId, String username) {
-        log.debug("Deleting comment {} on post {} by user {}", commentId, postId, username);
-
-        Comment comment = commentRepository.findById(commentId).orElseThrow(
-                () -> new NotFoundException(ErrorMessage.Comment.ERR_NOT_FOUND_ID, new String[]{String.valueOf(commentId)})
-        );
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new NotFoundException(ErrorMessage.Comment.ERR_NOT_FOUND_ID));
 
         validateCommentOwnership(comment, postId, username);
 
-        // Đếm tổng số comment sẽ bị xóa (Gốc + toàn bộ các nhánh con/cháu)
-        int totalDeleted = calculateTotalCommentsToDelete(comment);
+        int totalDeleted = 1;
 
-        // Xóa comment (Hibernate sẽ tự động xóa các replies nhờ Cascade)
+        if (comment.getParent() == null) {
+            // Nếu xóa Root Comment -> Số comment trên bài viết giảm = 1 (chính nó) + toàn bộ số replies
+            totalDeleted += comment.getReplyCount();
+        } else {
+            // Nếu xóa Reply -> Trừ đi 1 ở Root Comment
+            commentRepository.updateReplyCount(comment.getParent().getId(), -1);
+        }
+
         commentRepository.delete(comment);
-
-        // Trừ đúng số lượng đã xóa
         postRepository.decrementCommentCountBy(postId, totalDeleted);
     }
 
     @PreAuthorize("isAuthenticated()")
     @Override
     @Transactional(readOnly = true)
-    public Page<CommentResponseDto> getCommentsByPost(Long postId, Pageable pageable) {
-        return commentRepository.findParentCommentsByPostId(postId, pageable)
-                .map(commentMapper::toCommentResponseDto);
+    public CursorPageResponse<CommentResponseDto> getCommentsByPostCursor(Long postId, Long cursor, int size) {
+        // Lấy dư 1 phần tử để kiểm tra hasNext
+        PageRequest pageRequest = PageRequest.of(0, size + 1);
+        List<Comment> comments = commentRepository.findParentCommentsWithCursor(postId, cursor, pageRequest);
+
+        return buildCursorResponse(comments, size);
     }
 
     @PreAuthorize("isAuthenticated()")
     @Override
     @Transactional(readOnly = true)
-    public List<CommentResponseDto> getRepliesByParentId(Long postId, Long parentId) {
+    public CursorPageResponse<CommentResponseDto> getRepliesByParentIdCursor(Long postId, Long parentId, Long cursor, int size) {
         if (!postRepository.existsById(postId)) {
-            throw new NotFoundException(ErrorMessage.Post.ERR_NOT_FOUND_ID, new String[]{String.valueOf(postId)});
+            throw new NotFoundException(ErrorMessage.Post.ERR_NOT_FOUND_ID);
         }
-        log.debug("Getting replies for parent comment {}", parentId);
-        return commentRepository.findByParentIdOrderByCreatedAtAsc(parentId)
-                .stream()
+
+        PageRequest pageRequest = PageRequest.of(0, size + 1);
+        List<Comment> comments = commentRepository.findRepliesWithCursor(parentId, cursor, pageRequest);
+
+        return buildCursorResponse(comments, size);
+    }
+
+    // --- Private Helper Methods ---
+
+    private CursorPageResponse<CommentResponseDto> buildCursorResponse(List<Comment> comments, int size) {
+        boolean hasNext = comments.size() > size;
+        Long nextCursor = null;
+
+        if (hasNext) {
+            comments.remove(comments.size() - 1);
+        }
+
+        if (!comments.isEmpty()) {
+            nextCursor = comments.get(comments.size() - 1).getId();
+        }
+
+        List<CommentResponseDto> data = comments.stream()
                 .map(commentMapper::toCommentResponseDto)
-                .toList();
-    }
+                .collect(Collectors.toList());
 
-    @PreAuthorize("isAuthenticated()")
-    @Override
-    @Transactional(readOnly = true)
-    public CommentResponseDto getCommentWithReplies(Long postId, Long commentId) {
-        Comment comment = commentRepository.findById(commentId).orElseThrow(
-                () -> new NotFoundException(ErrorMessage.Comment.ERR_NOT_FOUND_ID, new String[]{String.valueOf(commentId)})
-        );
-        return commentMapper.toCommentResponseDto(comment);
-    }
-
-    private int calculateTotalCommentsToDelete(Comment comment) {
-        long descendantCount = commentRepository.countByParentId(comment.getId());
-        return 1 + (int) descendantCount;
+        return CursorPageResponse.<CommentResponseDto>builder()
+                .data(data)
+                .nextCursor(nextCursor)
+                .hasNext(hasNext)
+                .build();
     }
 
     private void validateCommentOwnership(Comment comment, Long postId, String username) {
-        // Kiểm tra xem user hiện tại có quyền ADMIN trong SecurityContext không
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         boolean isAdmin = auth.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
@@ -206,7 +210,7 @@ public class CommentServiceImpl implements CommentService {
 
         if (!isAdmin) {
             if (!comment.getPost().getId().equals(postId)) {
-                throw new NotFoundException(ErrorMessage.Comment.ERR_NOT_FOUND_COMMENT_IN_POST, new String[]{String.valueOf(comment.getId())});
+                throw new NotFoundException(ErrorMessage.Comment.ERR_NOT_FOUND_COMMENT_IN_POST);
             }
             if (!comment.getUser().getUsername().equals(username)) {
                 throw new UnauthorizedException(ErrorMessage.Comment.ERR_NOT_HAVE_PERMISSION);

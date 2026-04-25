@@ -21,16 +21,18 @@ public interface CommentMapper {
         CommentResponseDto dto = new CommentResponseDto();
         dto.setId(comment.getId());
         dto.setContent(comment.getContent());
+        dto.setCommentLevel(comment.getCommentLevel());
         dto.setAuthor(toUserSummaryDto(comment.getUser()));
 
-        dto.setReplyCount(comment.getReplyCount() != null ? comment.getReplyCount() : 0);
+        if (comment.getReplyToUser() != null) {
+            dto.setReplyToUser(toUserSummaryDto(comment.getReplyToUser()));
+        }
 
+        dto.setReplyCount(comment.getReplyCount() != null ? comment.getReplyCount() : 0);
         dto.setCreatedAt(comment.getCreatedAt());
         dto.setLastModifiedAt(comment.getLastModifiedAt());
         dto.setParentCommentId(comment.getParent() == null ? null : comment.getParent().getId());
         dto.setPostId(comment.getPost().getId());
-
-        dto.setReplies(null);
 
         return dto;
     }
