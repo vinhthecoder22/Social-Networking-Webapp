@@ -123,5 +123,12 @@ public class UrlConstant {
         }
     }
 
+    public static class Notification {
+        public static final String GET_NOTIFICATIONS = "/notifications";
+        public static final String GET_UNREAD_COUNT = "/notifications/unread-count";
+        public static final String MARK_AS_READ = "/notifications/{notificationId}/read";
+        public static final String MARK_ALL_AS_READ = "/notifications/read-all";
+    }
+
 }
 

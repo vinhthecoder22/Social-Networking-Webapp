@@ -99,5 +99,12 @@ public class ErrorMessage {
     public static class Role{
         public static final String ERR_NOT_FOUND = "exception.role.not.found";
     }
+
+    public static class Notification {
+        public static final String ERR_NOT_FOUND_ID = "exception.notification.not.found.id";
+        public static final String ERR_DUPLICATE = "exception.notification.duplicate";
+        public static final String ERR_NOT_FOUND = "exception.notification.not.found";
+        public static final String ERR_INVALID_FORMAT = "exception.notification.invalid.format";
+    }
 }
 

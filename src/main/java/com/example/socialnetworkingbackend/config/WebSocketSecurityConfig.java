@@ -45,7 +45,7 @@ public class WebSocketSecurityConfig implements WebSocketMessageBrokerConfigurer
                             // Check blacklist before validating token
                             if (redisService.hasKey("blacklist:" + token)) {
                                 log.warn("WebSocket connection rejected: token is blacklisted");
-                                return null;
+                                throw new IllegalArgumentException("Token is blacklisted");
                             }
 
                             if (jwtTokenProvider.validateToken(token)) {

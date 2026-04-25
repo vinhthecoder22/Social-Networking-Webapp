@@ -7,7 +7,9 @@ import lombok.*;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "notification")
+@Table(name = "notification", indexes = {
+        @Index(name = "idx_notification_recipient_id", columnList = "recipient_id")
+})
 @Getter
 @Setter
 @Builder
@@ -31,6 +33,9 @@ public class Notification extends DateAuditing {
     @Column(name = "notification_type", nullable = false)
     private NotificationType notificationType;
 
+    @Column(name = "message", nullable = false, columnDefinition = "TEXT")
+    private String message;
+
     @Column(name = "target_id", nullable = false)
     private String targetId; // ID của post, comment hoặc user liên quan
 
@@ -38,5 +43,6 @@ public class Notification extends DateAuditing {
     private String targetUrl; // Link điều hướng khi click
 
     @Column(name = "is_read", nullable = false)
+    @Builder.Default
     private Boolean isRead = Boolean.FALSE;
 }

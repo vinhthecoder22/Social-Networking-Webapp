@@ -16,8 +16,9 @@ public class NotificationResponseDto {
     private UserSummaryDto actor;
     private NotificationType notificationType;
     private String targetId;
+    private String targetUrl;
     private String message;
-    private boolean isRead;
+    private Boolean isRead;
     private LocalDateTime createdAt;
 
 }

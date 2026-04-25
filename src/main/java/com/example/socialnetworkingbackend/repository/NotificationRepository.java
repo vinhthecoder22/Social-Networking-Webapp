@@ -1,7 +1,29 @@
 package com.example.socialnetworkingbackend.repository;
 
 import com.example.socialnetworkingbackend.domain.entity.Notification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
+@Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
+
+    @Query("SELECT n FROM Notification n WHERE n.recipient.id = :recipientId " +
+            "AND (:cursor IS NULL OR n.id < :cursor) ORDER BY n.id DESC")
+    List<Notification> findByRecipientIdWithCursor(
+            @Param("recipientId") String recipientId,
+            @Param("cursor") Long cursor,
+            Pageable pageable);
+
+    long countByRecipientIdAndIsReadFalse(String recipientId);
+
+    @Modifying
+    @Query("UPDATE Notification n SET n.isRead = true WHERE n.recipient.id = :recipientId AND n.isRead = false")
+    void markAllAsRead(@Param("recipientId") String recipientId);
 }
