@@ -50,19 +50,14 @@ public class JwtTokenProvider {
         claim.put(CLAIM_TYPE, isRefreshToken ? TYPE_REFRESH : TYPE_ACCESS);
         claim.put(USERNAME_KEY, userPrincipal.getUsername());
         claim.put(AUTHORITIES_KEY, authorities);
-        if (isRefreshToken) {
-            return Jwts.builder()
-                    .setClaims(claim)
-                    .setIssuedAt(new Date(System.currentTimeMillis()))
-                    .setExpiration(new Date(System.currentTimeMillis() + (EXPIRATION_TIME_REFRESH_TOKEN * 60 * 1000L)))
-                    .signWith(getSigningKey(), SignatureAlgorithm.HS256)
-                    .compact();
-        }
+
+        long expirationTimeInMillis = isRefreshToken ? EXPIRATION_TIME_REFRESH_TOKEN : EXPIRATION_TIME_ACCESS_TOKEN;
+
         return Jwts.builder()
                 .setClaims(claim)
                 .setSubject(userPrincipal.getId())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + (EXPIRATION_TIME_ACCESS_TOKEN * 60 * 1000L)))
+                .setExpiration(new Date(System.currentTimeMillis() + expirationTimeInMillis))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -113,6 +108,9 @@ public class JwtTokenProvider {
         } catch (ExpiredJwtException ex) {
             log.error("Expired JWT token");
             throw new UnauthorizedException(ErrorMessage.Auth.EXPIRED_ACCESS_TOKEN);
+        } catch (UnsupportedJwtException | IllegalArgumentException ex) {
+            log.error("Unsupported or empty JWT token");
+            throw new UnauthorizedException(ErrorMessage.Auth.INVALID_ACCESS_TOKEN);
         }
     }
 

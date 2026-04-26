@@ -92,7 +92,7 @@ public class AuthServiceImpl implements AuthService {
                     userPrincipal.getId(),
                     refreshToken,
                     refreshExpiry,
-                    TimeUnit.MINUTES);
+                    TimeUnit.MILLISECONDS);
 
             logger.info("Login successful for user: {}", userPrincipal.getUsername());
 
@@ -143,8 +143,8 @@ public class AuthServiceImpl implements AuthService {
             long refreshExpiry = jwtTokenProvider.getExpirationTimeRefresh();
 
             // 5. Rotate token
-            redisService.blacklistToken(refreshToken, refreshExpiry, TimeUnit.MINUTES);
-            redisService.saveRefreshToken(userId, newRefreshToken, refreshExpiry, TimeUnit.MINUTES);
+            redisService.blacklistToken(refreshToken, refreshExpiry, TimeUnit.MILLISECONDS);
+            redisService.saveRefreshToken(userId, newRefreshToken, refreshExpiry, TimeUnit.MILLISECONDS);
 
             logger.info("Refresh token rotated successfully for user: {}", username);
 
@@ -171,11 +171,11 @@ public class AuthServiceImpl implements AuthService {
         long refreshTokenExpiry = jwtTokenProvider.getExpirationTimeRefresh();
 
         // Blacklist access token
-        redisService.save("blacklist:" + accessToken, "logout", accessTokenExpiry, TimeUnit.MINUTES);
+        redisService.blacklistToken(accessToken, accessTokenExpiry, TimeUnit.MILLISECONDS);
 
         // Blacklist refresh token if provided
         if (StringUtils.hasText(refreshToken)) {
-            redisService.blacklistToken(refreshToken, refreshTokenExpiry, TimeUnit.MINUTES);
+            redisService.blacklistToken(refreshToken, refreshTokenExpiry, TimeUnit.MILLISECONDS);
 
             try {
                 String username = jwtTokenProvider.extractClaimUsername(refreshToken);
