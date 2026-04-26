@@ -9,9 +9,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -28,32 +30,38 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private final RedisService redisService;
     private final ObjectMapper objectMapper;
 
-    private final String FRONTEND_URL = "http://localhost:3000";
+    @Value("${app.oauth2.redirect-uri:http://localhost:5173/oauth2-redirect}")
+    private String frontendRedirectUri;
 
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException {
+    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
+                                        Authentication authentication) throws IOException {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-
-        // 1. Sinh Token
         String accessToken = jwtTokenProvider.generateToken(userPrincipal, false);
         String refreshToken = jwtTokenProvider.generateToken(userPrincipal, true);
-
-        // 2. Lưu Refresh Token và Session vào Redis thay vì MySQL
+        long refreshExpiry = jwtTokenProvider.getExpirationTimeRefresh();
         String username = userPrincipal.getUsername();
-        redisService.save("refresh_token:" + username, refreshToken, 1440, TimeUnit.MINUTES);
+
+        redisService.saveRefreshToken(userPrincipal.getId(), refreshToken, refreshExpiry, TimeUnit.MILLISECONDS);
 
         try {
             Map<String, Object> sessionData = new HashMap<>();
             sessionData.put("username", username);
             sessionData.put("status", UserStatus.ONLINE.name());
             sessionData.put("last_activity", LocalDateTime.now().toString());
-            redisService.save("session:" + username, objectMapper.writeValueAsString(sessionData), 1440, TimeUnit.MINUTES);
+            redisService.save("session:" + username,
+                    objectMapper.writeValueAsString(sessionData),
+                    refreshExpiry,
+                    TimeUnit.MILLISECONDS);
         } catch (Exception e) {
-            log.error("Lỗi lưu session Redis: ", e);
+            log.error("Failed to persist OAuth2 session", e);
         }
 
-        // 3. Trả thẳng Token về URL của FE (FE sẽ bóc tách và cất vào LocalStorage)
-        String targetUrl = String.format("%s/oauth2/redirect?accessToken=%s&refreshToken=%s", FRONTEND_URL, accessToken, refreshToken);
+        String targetUrl = UriComponentsBuilder.fromUriString(frontendRedirectUri)
+                .queryParam("accessToken", accessToken)
+                .queryParam("refreshToken", refreshToken)
+                .build()
+                .toUriString();
         response.sendRedirect(targetUrl);
     }
 }
