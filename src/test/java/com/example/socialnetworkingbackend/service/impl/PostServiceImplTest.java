@@ -1,9 +1,5 @@
 package com.example.socialnetworkingbackend.service.impl;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-
 import com.example.socialnetworkingbackend.constant.ErrorMessage;
 import com.example.socialnetworkingbackend.constant.MediaType;
 import com.example.socialnetworkingbackend.domain.dto.request.PostRequestDto;
@@ -18,6 +14,7 @@ import com.example.socialnetworkingbackend.repository.PostRepository;
 import com.example.socialnetworkingbackend.repository.UserRepository;
 import com.example.socialnetworkingbackend.security.UserPrincipal;
 import com.example.socialnetworkingbackend.service.PostMediaService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,24 +22,40 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 @ExtendWith(MockitoExtension.class)
 class PostServiceImplTest {
 
-    @Mock private PostRepository postRepository;
-    @Mock private PostCategoryRepository postCategoryRepository;
-    @Mock private UserRepository userRepository;
-    @Mock private PostMapper postMapper;
-    @Mock private PostMediaService postMediaService;
+    @Mock
+    private PostRepository postRepository;
+    @Mock
+    private PostCategoryRepository postCategoryRepository;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private PostMapper postMapper;
+    @Mock
+    private PostMediaService postMediaService;
 
     @InjectMocks
     private PostServiceImpl postService;
@@ -51,7 +64,6 @@ class PostServiceImplTest {
     private User mockUser;
     private PostCategory mockCategory;
     private List<File> mockFiles;
-    private List<MultipartFile> mockMultipartFiles;
     private List<String> contentTypes;
 
     @BeforeEach
@@ -71,29 +83,32 @@ class PostServiceImplTest {
         File tempFile = File.createTempFile("test-image", ".jpg");
         tempFile.deleteOnExit();
         mockFiles = List.of(tempFile);
-        mockMultipartFiles = new ArrayList<>();
         contentTypes = List.of("image/jpeg");
 
-        // GIẢ LẬP SECURITY CONTEXT
         UserPrincipal principal = new UserPrincipal(
                 "user-123",
                 "Nguyen",
                 "Vinh",
                 "testuser",
                 "pass",
-                new ArrayList<>()
-        );
-        Authentication authentication = mock(Authentication.class);
-        when(authentication.getPrincipal()).thenReturn(principal);
-        SecurityContext securityContext = mock(SecurityContext.class);
-        when(securityContext.getAuthentication()).thenReturn(authentication);
+                new ArrayList<>());
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                principal,
+                null,
+                principal.getAuthorities());
+        SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
+        securityContext.setAuthentication(authentication);
         SecurityContextHolder.setContext(securityContext);
     }
 
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
     @Test
-    @DisplayName("Tạo bài viết thành công với hình ảnh hợp lệ")
+    @DisplayName("Create post succeeds with valid image input")
     void createPost_Success() throws Exception {
-        // ARRANGE
         when(postCategoryRepository.findById(1L)).thenReturn(Optional.of(mockCategory));
         when(userRepository.findById("user-123")).thenReturn(Optional.of(mockUser));
 
@@ -105,28 +120,22 @@ class PostServiceImplTest {
         responseDto.setId(99L);
         when(postMapper.toPostResponseDto(any(Post.class))).thenReturn(responseDto);
 
-        // ACT
-        PostResponseDto result = postService.createPost(requestDto, mockFiles, mockMultipartFiles, contentTypes);
+        PostResponseDto result = postService.createPost(requestDto, mockFiles, contentTypes);
 
-        // ASSERT
         assertNotNull(result);
         assertEquals(99L, result.getId());
-        // Kiểm tra xem Service có gọi lệnh xử lý File nền không
         verify(postMediaService, times(1)).processPostMedia(eq(99L), anyList(), anyList(), any());
     }
 
     @Test
-    @DisplayName("Tạo bài viết thất bại: Sai định dạng file (Bắt lỗi Media Type)")
+    @DisplayName("Create post fails when media type does not match file content type")
     void createPost_Fail_InvalidFormat() {
-        // ARRANGE: Người dùng truyền File PDF, nhưng MediaType ở Request yêu cầu là IMAGE
         contentTypes = List.of("application/pdf");
 
-        // ACT & ASSERT
-        BadRequestException exception = assertThrows(BadRequestException.class, () -> {
-            postService.createPost(requestDto, mockFiles, mockMultipartFiles, contentTypes);
-        });
+        BadRequestException exception = assertThrows(BadRequestException.class,
+                () -> postService.createPost(requestDto, mockFiles, contentTypes));
 
         assertEquals(ErrorMessage.Post.ERR_FILES_INVALID_FORMAT, exception.getMessage());
-        verify(postRepository, never()).save(any(Post.class)); // Đảm bảo rác không lọt vào DB
+        verify(postRepository, never()).save(any(Post.class));
     }
 }

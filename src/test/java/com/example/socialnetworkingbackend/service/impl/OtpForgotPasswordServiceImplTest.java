@@ -1,11 +1,5 @@
 package com.example.socialnetworkingbackend.service.impl;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
-
 import com.example.socialnetworkingbackend.constant.ErrorMessage;
 import com.example.socialnetworkingbackend.domain.entity.User;
 import com.example.socialnetworkingbackend.exception.BadRequestException;
@@ -20,12 +14,25 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class OtpForgotPasswordServiceImplTest {
@@ -40,11 +47,13 @@ class OtpForgotPasswordServiceImplTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private RedisService redisService;
+    @Mock
+    private StringRedisTemplate stringRedisTemplate;
 
     @InjectMocks
     private OtpForgotPasswordServiceImpl otpService;
 
-    private final String TEST_EMAIL = "test@gmail.com";
+    private static final String TEST_EMAIL = "test@gmail.com";
     private User mockUser;
 
     @BeforeEach
@@ -53,74 +62,59 @@ class OtpForgotPasswordServiceImplTest {
         mockUser.setFirstName("Nguyen");
         mockUser.setLastName("Vinh");
         mockUser.setEmail(TEST_EMAIL);
+
+        ReflectionTestUtils.setField(otpService, "otpExpiryMinutes", 5);
+        ReflectionTestUtils.setField(otpService, "maxAttempts", 5);
+        ReflectionTestUtils.setField(otpService, "lockDurationMinutes", 15);
     }
 
     @Test
-    @DisplayName("Test Gửi OTP Thành Công: User hợp lệ, chưa bị khóa Spam")
+    @DisplayName("Send OTP succeeds when user exists and cooldown is clear")
     void sendOtpForgotPassword_Success() {
-        // ARRANGE
-        // 1. Giả lập Redis báo "chưa có key này" (Không bị spam)
+        when(redisService.hasKey("otp_lock:" + TEST_EMAIL)).thenReturn(false);
         when(redisService.hasKey("otp:" + TEST_EMAIL)).thenReturn(false);
-
-        // 2. Giả lập tìm thấy User trong DB
         when(userRepository.findByUsernameOrEmail(TEST_EMAIL, TEST_EMAIL)).thenReturn(Optional.of(mockUser));
-
-        // 3. Giả lập Template Engine tạo file HTML thành công
         when(templateEngine.process(eq("otp_send_email"), any(Context.class))).thenReturn("<html>Mocked HTML</html>");
 
-        // ACT
         boolean result = otpService.sendOtpForgotPassword(TEST_EMAIL);
 
-        // ASSERT
-        assertTrue(result, "Hàm phải trả về true khi gửi thành công");
-
-        // Đảm bảo mailService đã thực sự được gọi 1 lần để gửi thư
+        assertTrue(result);
         verify(mailService, times(1)).sendEmailWithObject(
                 eq(TEST_EMAIL),
                 eq("<html>Mocked HTML</html>"),
-                eq("Mã xác nhận quên mật khẩu")
-        );
-
-        // Đảm bảo OTP đã được lưu vào Redis với TTL 5 phút
-        verify(redisService, times(1)).save(startsWith("otp:" + TEST_EMAIL), anyString(), eq(5L), eq(TimeUnit.MINUTES));
+                eq("Mã xác nhận quên mật khẩu"));
+        verify(redisService, times(1)).save(
+                eq("otp:" + TEST_EMAIL),
+                anyString(),
+                eq(5L),
+                eq(TimeUnit.MINUTES));
     }
 
     @Test
-    @DisplayName("Test Gửi OTP Thất Bại: Chặn Spam - Bắt lỗi BadRequestException")
+    @DisplayName("Send OTP fails when cooldown is active")
     void sendOtpForgotPassword_Fail_SpamCooldown() {
-        // ARRANGE
-        // Giả lập Redis báo "Đang có key này rồi" (User vừa bấm xin mã cách đây ít phút)
+        when(redisService.hasKey("otp_lock:" + TEST_EMAIL)).thenReturn(false);
         when(redisService.hasKey("otp:" + TEST_EMAIL)).thenReturn(true);
 
-        // ACT & ASSERT
-        // Kỳ vọng hàm sẽ văng lỗi BadRequestException
-        BadRequestException exception = assertThrows(BadRequestException.class, () -> {
-            otpService.sendOtpForgotPassword(TEST_EMAIL);
-        });
+        BadRequestException exception = assertThrows(BadRequestException.class,
+                () -> otpService.sendOtpForgotPassword(TEST_EMAIL));
 
         assertEquals("Vui lòng đợi 5 phút trước khi yêu cầu mã OTP mới.", exception.getMessage());
-
-        // Đảm bảo khi bị khóa Spam, hệ thống KHÔNG truy vấn DB và KHÔNG gửi mail
         verify(userRepository, never()).findByUsernameOrEmail(anyString(), anyString());
         verify(mailService, never()).sendEmailWithObject(anyString(), anyString(), anyString());
     }
 
     @Test
-    @DisplayName("Test Gửi OTP Thất Bại: Không tìm thấy Email trong hệ thống")
+    @DisplayName("Send OTP fails when email does not exist")
     void sendOtpForgotPassword_Fail_EmailNotFound() {
-        // ARRANGE
-        when(redisService.hasKey("otp:" + TEST_EMAIL)).thenReturn(false); // Không bị spam
-        // DB trả về rỗng (Không tìm thấy user)
+        when(redisService.hasKey("otp_lock:" + TEST_EMAIL)).thenReturn(false);
+        when(redisService.hasKey("otp:" + TEST_EMAIL)).thenReturn(false);
         when(userRepository.findByUsernameOrEmail(TEST_EMAIL, TEST_EMAIL)).thenReturn(Optional.empty());
 
-        // ACT & ASSERT
-        NotFoundException exception = assertThrows(NotFoundException.class, () -> {
-            otpService.sendOtpForgotPassword(TEST_EMAIL);
-        });
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> otpService.sendOtpForgotPassword(TEST_EMAIL));
 
         assertEquals(ErrorMessage.User.ERR_NOT_FOUND_EMAIL, exception.getMessage());
-
-        // Đảm bảo không có mail nào bị gửi đi
         verify(mailService, never()).sendEmailWithObject(anyString(), anyString(), anyString());
     }
 }
