@@ -1,4 +1,4 @@
-package com.example.projectbase.domain.dto.response;
+package com.example.socialnetworkingbackend.domain.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

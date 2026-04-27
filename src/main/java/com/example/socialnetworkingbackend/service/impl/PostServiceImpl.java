@@ -9,10 +9,9 @@ import com.example.socialnetworkingbackend.domain.dto.pagination.PaginationReque
 import com.example.socialnetworkingbackend.domain.dto.pagination.PaginationResponseDto;
 import com.example.socialnetworkingbackend.domain.dto.pagination.PagingMeta;
 import com.example.socialnetworkingbackend.domain.dto.request.PostRequestDto;
-
 import com.example.socialnetworkingbackend.domain.dto.response.PostResponseDto;
-import com.example.socialnetworkingbackend.domain.entity.PostCategory;
 import com.example.socialnetworkingbackend.domain.entity.Post;
+import com.example.socialnetworkingbackend.domain.entity.PostCategory;
 import com.example.socialnetworkingbackend.domain.entity.User;
 import com.example.socialnetworkingbackend.domain.mapper.PostMapper;
 import com.example.socialnetworkingbackend.exception.BadRequestException;
@@ -27,21 +26,20 @@ import com.example.socialnetworkingbackend.service.PostService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -58,14 +56,12 @@ public class PostServiceImpl implements PostService {
     private final UserRepository userRepository;
     private final PostMapper postMapper;
     private final PostMediaService postMediaService;
-
     private final RedisTemplate<String, Object> redisTemplate;
 
     @PreAuthorize("isAuthenticated()")
     @Transactional
     @Override
-    public PostResponseDto createPost(PostRequestDto requestDto, List<File> files, List<MultipartFile> multipartFiles,
-                                      List<String> contentTypeFileList)
+    public PostResponseDto createPost(PostRequestDto requestDto, List<File> files, List<String> contentTypeFileList)
             throws JsonProcessingException, ExecutionException, InterruptedException, TimeoutException {
 
         if (files.isEmpty() || !files.get(0).isFile()) {
@@ -81,38 +77,37 @@ public class PostServiceImpl implements PostService {
                 }
 
                 String actualType = contentType.split("/")[0].toLowerCase();
-
                 if (!actualType.equals(expectedType)) {
                     throw new BadRequestException(ErrorMessage.Post.ERR_FILES_INVALID_FORMAT);
                 }
             }
         }
 
-        List<String> filePaths = files.stream()
-                .map(File::getAbsolutePath)
-                .collect(Collectors.toList());
-
         PostCategory postCategory = postCategoryRepository.findById(requestDto.getCategoryId())
-                .orElseThrow(() -> new NotFoundException("Category không tồn tại", new String[]{String.valueOf(requestDto.getCategoryId())}));
+                .orElseThrow(() -> new NotFoundException(
+                        "Invalid Category",
+                        new String[]{String.valueOf(requestDto.getCategoryId())}));
 
         UserPrincipal userPrincipal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication()
                 .getPrincipal();
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new NotFoundException(ErrorMessage.User.ERR_NOT_FOUND_ID,
-                        new String[] { userPrincipal.getId() }));
+                        new String[]{userPrincipal.getId()}));
 
         Post post = buildPostFromDto(requestDto, postCategory, user);
         post.setStatus(PostStatusConstant.PENDING_MODERATION);
         Post savedPost = postRepository.save(post);
 
-        log.info("Đã tạo Post với trạng thái PENDING_MODERATION, postId: {}", savedPost.getId());
+        log.info("Created post with PENDING_MODERATION status, postId: {}", savedPost.getId());
 
-        postMediaService.processPostMedia(savedPost.getId(), filePaths, contentTypeFileList,
+        postMediaService.processPostMedia(
+                savedPost.getId(),
+                new ArrayList<>(files),
+                contentTypeFileList,
                 requestDto.getSingerName());
-        log.info("Đã gửi yêu cầu xử lý media async cho postId: {}", savedPost.getId());
+        log.info("Queued async media processing for postId: {}", savedPost.getId());
 
         return postMapper.toPostResponseDto(savedPost);
-
     }
 
     @PreAuthorize("isAuthenticated() and @postServiceImpl.isOwner(#postId, authentication.name)")
@@ -186,7 +181,7 @@ public class PostServiceImpl implements PostService {
                 .totalElements(postPage.getTotalElements())
                 .build();
 
-        return new PaginationResponseDto(meta, dtoList);
+        return new PaginationResponseDto<>(meta, dtoList);
     }
 
     private Post buildPostFromDto(PostRequestDto requestDto, PostCategory postCategory, User user) {
@@ -205,8 +200,9 @@ public class PostServiceImpl implements PostService {
 
     private Post findPostOrThrow(Long id) {
         return postRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(ErrorMessage.Post.ERR_NOT_FOUND_ID,
-                        new String[] { String.valueOf(id) }));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorMessage.Post.ERR_NOT_FOUND_ID,
+                        new String[]{String.valueOf(id)}));
     }
 
     public boolean isOwner(Long postId, String username) {
@@ -218,23 +214,20 @@ public class PostServiceImpl implements PostService {
         UserPrincipal userPrincipal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String redisKey = "username:" + userPrincipal.getUsername() + ":trending";
 
-        // Lấy toàn bộ Map từ Redis Hash
         Map<Object, Object> dataTrending = redisTemplate.opsForHash().entries(redisKey);
 
         if (dataTrending != null && !dataTrending.isEmpty()) {
             return dataTrending.entrySet().stream()
                     .sorted((e1, e2) -> {
-                        // Ép kiểu an toàn từ object của Redis
                         Long val1 = Long.parseLong(e1.getValue().toString());
                         Long val2 = Long.parseLong(e2.getValue().toString());
-                        return val2.compareTo(val1); // Sắp xếp giảm dần
+                        return val2.compareTo(val1);
                     })
                     .limit(5)
                     .map(e -> e.getKey().toString())
                     .collect(Collectors.toList());
         }
 
-        // Nếu user chưa có data, trả về Top 5 hệ thống
         List<PostCategory> postCategoryList = postCategoryRepository.findTop5ByOrderByInteractionCountDesc();
         return postCategoryList.stream()
                 .map(PostCategory::getName)
@@ -245,12 +238,10 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional(readOnly = true)
     public PaginationResponseDto<PostResponseDto> getNewsfeed(PaginationRequestDto requestDto) {
-
         String currentUserId = ((UserPrincipal) SecurityContextHolder.getContext()
                 .getAuthentication().getPrincipal()).getId();
 
         Pageable pageable = PageRequest.of(requestDto.getPageNum(), requestDto.getPageSize());
-
         Page<Long> idPage = postRepository.getNewsfeedPostIds(currentUserId, pageable);
 
         PagingMeta metadata = PagingMeta.builder()
@@ -265,7 +256,6 @@ public class PostServiceImpl implements PostService {
         }
 
         List<Post> posts = postRepository.findPostsWithDetailsByIds(idPage.getContent());
-
         List<PostResponseDto> postList = posts.stream()
                 .map(postMapper::toPostResponseDto)
                 .collect(Collectors.toList());

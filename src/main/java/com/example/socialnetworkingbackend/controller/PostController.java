@@ -8,6 +8,7 @@ import com.example.socialnetworkingbackend.domain.dto.pagination.PaginationReque
 import com.example.socialnetworkingbackend.domain.dto.pagination.PaginationResponseDto;
 import com.example.socialnetworkingbackend.domain.dto.request.PostRequestDto;
 import com.example.socialnetworkingbackend.domain.dto.response.PostResponseDto;
+import com.example.socialnetworkingbackend.exception.BadRequestException;
 import com.example.socialnetworkingbackend.service.PostService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.v3.oas.annotations.Operation;
@@ -58,9 +59,13 @@ public class PostController {
     })
     @PostMapping(value = UrlConstant.Post.CREATE_NEW_POST, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> createNewPost(
-            @Parameter(description = "Thông tin bài viết (JSON String)", required = true, schema = @Schema(type = "string", format = "json", example = "{\"title\": \"Tiêu đề\", \"content\": \"Nội dung\", \"category\": \"Tên danh mục\", \"mediaType\": \"IMAGE\", \"singerName\": \"Tên ca sĩ (nếu có)\"}")) @RequestPart("data") String dataStr,
-
-            @Parameter(description = "Danh sách file upload", required = true) @RequestPart("files") List<MultipartFile> files)
+            @Parameter(
+                    description = "Thông tin bài viết (JSON String)",
+                    required = true,
+                    schema = @Schema(type = "string", format = "json", example = "{\"title\": \"Tiêu đề\", \"content\": \"Nội dung\", \"category\": \"Tên danh mục\", \"mediaType\": \"IMAGE\", \"singerName\": \"Tên ca sĩ (nếu có)\"}"))
+            @RequestPart("data") String dataStr,
+            @Parameter(description = "Danh sách file upload", required = true)
+            @RequestPart("files") List<MultipartFile> files)
             throws IOException, ExecutionException, InterruptedException, TimeoutException {
 
         log.info("Received dataStr: {}", dataStr);
@@ -69,8 +74,7 @@ public class PostController {
             requestDto = objectMapper.readValue(dataStr, PostRequestDto.class);
         } catch (JsonProcessingException e) {
             log.error("JSON Error: {}", e.getMessage());
-            throw new com.example.socialnetworkingbackend.exception.BadRequestException(
-                    "Invalid JSON format in 'data' part: " + e.getMessage());
+            throw new BadRequestException("Invalid JSON format in 'data' part: " + e.getMessage());
         }
 
         // Thực hiện kiểm tra Validation thủ công sau khi Parse JSON
@@ -78,19 +82,20 @@ public class PostController {
         if (!violations.isEmpty()) {
             // Lấy lỗi đầu tiên và ném ra
             String errorMessage = violations.iterator().next().getMessage();
-            throw new com.example.socialnetworkingbackend.exception.BadRequestException(errorMessage);
+            throw new BadRequestException(errorMessage);
         }
 
         log.info("transfer To original File");
         List<File> copiedFiles = new ArrayList<>();
         List<String> contentTypeList = new ArrayList<>();
+        boolean handedOffToAsyncProcessor = false;
         try {
             for (MultipartFile multipartFile : files) {
                 contentTypeList.add(multipartFile.getContentType());
                 // Sanitize filename - only use the file extension, not the original name
                 String originalName = multipartFile.getOriginalFilename();
                 String extension = (originalName != null && originalName.contains("."))
-                        ? originalName.substring(originalName.lastIndexOf("."))
+                        ? originalName.substring(originalName.lastIndexOf('.'))
                         : ".tmp";
                 // Remove any non-alphanumeric chars from extension
                 extension = extension.replaceAll("[^a-zA-Z0-9.]", "");
@@ -99,13 +104,13 @@ public class PostController {
                 copiedFiles.add(tempFile);
             }
             log.info("successfully transfer To original File");
-            PostResponseDto responseDto = postService.createPost(requestDto, copiedFiles, files, contentTypeList);
+            PostResponseDto responseDto = postService.createPost(requestDto, copiedFiles, contentTypeList);
+            handedOffToAsyncProcessor = true;
             return VsResponseUtil.success(HttpStatus.CREATED, responseDto);
         } finally {
-            // Luôn dọn dẹp các tập tin tạm thời để tránh disk space exhaustion
-            for (File tempFile : copiedFiles) {
-                if (tempFile != null && tempFile.exists()) {
-                    if (!tempFile.delete()) {
+            if (!handedOffToAsyncProcessor) {
+                for (File tempFile : copiedFiles) {
+                    if (tempFile != null && tempFile.exists() && !tempFile.delete()) {
                         log.warn("Failed to delete temp file: {}", tempFile.getAbsolutePath());
                     }
                 }
