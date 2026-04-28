@@ -17,11 +17,11 @@ import jakarta.persistence.MappedSuperclass;
 public abstract class UserDateAuditing extends DateAuditing {
 
     @CreatedBy
-    @Column(updatable = false)
+    @Column(name = "created_by", nullable = false, updatable = false)
     private String createdBy;
 
     @LastModifiedBy
-    @Column(nullable = false)
+    @Column(name = "last_modified_by", nullable = false)
     private String lastModifiedBy;
 
 }
