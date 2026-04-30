@@ -51,6 +51,7 @@ Thumbs.db
 .env
 *.env.*
 src/main/resources/application.properties
+src/main/resources/application-prod.properties
 src/main/resources/firebase-service-account.json
 
 # Security

@@ -37,8 +37,15 @@ public class PasswordValidator implements ConstraintValidator<ValidPassword, Str
         }
 
         if (props.isRequireSpecial()) {
-            String regex = ".*[" + props.getSpecialChars() + "].*";
-            if (!password.matches(regex)) {
+            String specialChars = props.getSpecialChars();
+            boolean hasSpecial = false;
+            for (char c : password.toCharArray()) {
+                if (specialChars.indexOf(c) >= 0) {
+                    hasSpecial = true;
+                    break;
+                }
+            }
+            if (!hasSpecial) {
                 buildMessage(context, "Password must contain at least one special character");
                 return false;
             }

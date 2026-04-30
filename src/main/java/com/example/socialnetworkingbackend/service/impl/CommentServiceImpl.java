@@ -46,8 +46,7 @@ public class CommentServiceImpl implements CommentService {
     @Transactional
     public CommentResponseDto addComment(Long postId, CommentRequestDto requestDto, String username) {
         Post post = postRepository.findById(postId).orElseThrow(
-                () -> new NotFoundException(ErrorMessage.Post.ERR_NOT_FOUND_ID, new String[]{String.valueOf(postId)})
-        );
+                () -> new NotFoundException(ErrorMessage.Post.ERR_NOT_FOUND_ID, new String[]{String.valueOf(postId)}));
 
         User user = userRepository.findByUsernameOrEmail(username, username)
                 .orElseThrow(() -> new NotFoundException(ErrorMessage.User.ERR_NOT_FOUND_USERNAME, new String[]{username}));
@@ -66,8 +65,7 @@ public class CommentServiceImpl implements CommentService {
         if (!post.getUser().getUsername().equals(username)) {
             notificationService.sendNotification(
                     post.getUser(), user, NotificationType.COMMENT,
-                    String.valueOf(postId), user.getFirstName() + " đã bình luận bài viết của bạn."
-            );
+                    String.valueOf(postId), user.getFirstName() + " đã bình luận bài viết của bạn.");
         }
 
         return commentMapper.toCommentResponseDto(savedComment);
@@ -110,8 +108,7 @@ public class CommentServiceImpl implements CommentService {
         if (!parentOrTarget.getUser().getUsername().equals(username)) {
             notificationService.sendNotification(
                     parentOrTarget.getUser(), user, NotificationType.COMMENT,
-                    String.valueOf(postId), user.getFirstName() + " đã phản hồi bình luận của bạn."
-            );
+                    String.valueOf(postId), user.getFirstName() + " đã phản hồi bình luận của bạn.");
         }
 
         return commentMapper.toCommentResponseDto(savedReply);
@@ -183,15 +180,13 @@ public class CommentServiceImpl implements CommentService {
         boolean hasNext = comments.size() > size;
         Long nextCursor = null;
 
-        if (hasNext) {
-            comments.remove(comments.size() - 1);
+        List<Comment> result = hasNext ? comments.subList(0, size) : comments;
+
+        if (!result.isEmpty()) {
+            nextCursor = result.get(result.size() - 1).getId();
         }
 
-        if (!comments.isEmpty()) {
-            nextCursor = comments.get(comments.size() - 1).getId();
-        }
-
-        List<CommentResponseDto> data = comments.stream()
+        List<CommentResponseDto> data = result.stream()
                 .map(commentMapper::toCommentResponseDto)
                 .collect(Collectors.toList());
 

@@ -51,7 +51,9 @@ public class WebSecurityConfig {
     private String[] allowedOrigins;
 
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/v1/auth/**",
+            "/api/v1/auth/login",
+            "/api/v1/auth/register",
+            "/api/v1/auth/refresh-token",
             "/api/v1/forgot-password/**",
             "/login/oauth2/**",
             "/api/v1/oauth2/info/**",
